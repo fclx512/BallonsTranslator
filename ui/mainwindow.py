@@ -4101,6 +4101,10 @@ class MainWindow(mainwindow_cls):
             # qprocess seems to fuck up with "\""
             p = '"' + str(Path(current_img_path)) + '"'
             subprocess.Popen("explorer.exe /select," + p, shell=True)
+        elif sys.platform == "darwin":
+            subprocess.run(["open", "-R", str(current_img_path)])
+        else:
+            subprocess.run(["xdg-open", str(Path(current_img_path).parent)])
 
     def on_set_gsearch_widget(self):
         setup = self.leftBar.globalSearchChecker.isChecked()

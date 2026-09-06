@@ -48,6 +48,9 @@ docs/.obsidian/
 *.onnx
 *.7z
 venv
+venv/
+.venv/
+.venv-mac/
 pip
 .DS_Store
 *.dic

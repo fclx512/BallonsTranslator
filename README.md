@@ -91,6 +91,23 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 
 **Kepler（GTX 6xx / 7xx）** 不被 PyTorch 2.x 支持，请使用 CPU 模式。
 
+## macOS
+
+macOS 无一键包，请用源码运行（需 Python 3.10–3.12，推荐 3.12；不支持 3.13+ 的部分依赖）：
+
+```bash
+git clone https://github.com/fclx512/BallonsTranslator-lite.git
+cd BallonsTranslator-lite
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+pip install torch torchvision transformers diffusers   # Apple Silicon 走 MPS 加速
+python launch.py
+```
+
+- **Apple Silicon（M 系列）**：PyTorch 自动使用 **MPS** 加速（无需 CUDA）；Intel Mac 或不支持 MPS 时自动退回 CPU。
+- 一键包、`launch.bat`、`install_cuda.bat` 为 Windows 专属，macOS 不适用。
+- PatchMatch 修复器依赖随包发布的平台原生库，macOS 暂不可用，可改用基于 PyTorch 的修复器。
+
 ## 更新
 
 - **ZIP 发行版用户**（一键包）：前往 [Releases](https://github.com/fclx512/BallonsTranslator-lite/releases) 下载最新版源码压缩包，解压覆盖到原目录。一键包不含 git，无法通过启动脚本或应用内功能更新。
