@@ -1,0 +1,94 @@
+"""launch.py 平台加速器检测与 --reinstall-torch 平台分支的单元测试。
+
+只测平台决策逻辑，不真实 import torch（用最小 fake module 注入 sys.modules），
+也不触发真实 pip / nvidia-smi（mock detect_gpu_info / ensure_uv / run）。
+"""
+
+import sys
+import types
+import unittest
+from pathlib import Path
+from unittest import mock
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+import launch
+
+
+def _fake_torch(cuda=False, mps=False, mps_attr=True):
+    """构造最小 torch 替身。mps_attr=False 时 backends 上没有 mps 属性。"""
+    backends = types.SimpleNamespace()
+    if mps_attr:
+        backends.mps = types.SimpleNamespace(is_available=lambda: mps)
+    return types.SimpleNamespace(
+        __file__="/fake/torch/__init__.py",
+        cuda=types.SimpleNamespace(is_available=lambda: cuda),
+        backends=backends,
+    )
+
+
+class DetectTorchTests(unittest.TestCase):
+    def _run(self, torch_mod, platform="linux"):
+        with mock.patch.dict(sys.modules, {"torch": torch_mod}), mock.patch.object(
+            sys, "platform", platform
+        ), mock.patch.object(launch, "detect_gpu_info", lambda: None):
+            return launch._detect_user_torch()
+
+    def test_cuda_available_is_accelerated(self):
+        self.assertTrue(self._run(_fake_torch(cuda=True), platform="win32"))
+
+    def test_mps_available_is_accelerated(self):
+        self.assertTrue(self._run(_fake_torch(cuda=False, mps=True), platform="darwin"))
+
+    def test_no_accelerator_is_false(self):
+        self.assertFalse(self._run(_fake_torch(cuda=False, mps=False), platform="darwin"))
+
+    def test_missing_mps_attr_does_not_crash(self):
+        self.assertFalse(
+            self._run(_fake_torch(cuda=False, mps_attr=False), platform="linux")
+        )
+
+    def test_torch_missing_is_false(self):
+        with mock.patch.dict(sys.modules, {"torch": None}), mock.patch.object(
+            sys, "platform", "darwin"
+        ):
+            self.assertFalse(launch._detect_user_torch())
+
+
+class ReinstallTorchPlatformTests(unittest.TestCase):
+    def _prepare(self, platform, gpu_info):
+        args = types.SimpleNamespace(reinstall_torch=True, frozen=False)
+        with mock.patch.object(sys, "platform", platform), mock.patch.object(
+            launch, "args", args
+        ), mock.patch.object(launch, "detect_gpu_info", lambda: gpu_info), mock.patch.object(
+            launch, "ensure_uv", lambda: None
+        ), mock.patch.object(
+            launch, "run", mock.MagicMock()
+        ) as run_mock:
+            ret = launch.prepare_environment()
+        return ret, run_mock
+
+    def test_non_windows_without_nvidia_skips_cuda(self):
+        ret, run_mock = self._prepare("linux", None)
+        self.assertFalse(ret)
+        run_mock.assert_not_called()  # 未尝试 CUDA wheel 安装
+
+    def test_windows_nvidia_selects_cuda_index(self):
+        info = {"message": "x", "generation": "Ampere", "torch_index": "https://cu124"}
+        ret, run_mock = self._prepare("win32", info)
+        self.assertFalse(ret)
+        run_mock.assert_called_once()
+        command = run_mock.call_args[0][0]
+        self.assertIn("cu124", command)
+
+    def test_old_nvidia_no_index_skips(self):
+        info = {"message": "old", "generation": "Kepler", "torch_index": None}
+        ret, run_mock = self._prepare("win32", info)
+        self.assertFalse(ret)
+        run_mock.assert_not_called()
+
+
+if __name__ == "__main__":
+    unittest.main()

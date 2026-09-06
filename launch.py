@@ -209,14 +209,15 @@ def commit_hash():
 
 
 def _detect_user_torch():
-    """Check if the current Python process has CUDA-capable PyTorch.
+    """Check if the current Python process has GPU-accelerated PyTorch.
 
     Unlike the old implementation, this does NOT search other Pythons on
     the system.  It only checks ``import torch`` within the current process,
-    then verifies with ``torch.cuda.is_available()``.
+    then verifies an accelerator is available: CUDA on NVIDIA GPUs or MPS on
+    Apple Silicon.
 
     Returns:
-        True if CUDA-capable PyTorch is available in the current process.
+        True if an accelerated PyTorch is available in the current process.
         False otherwise.
     """
     try:
@@ -229,8 +230,19 @@ def _detect_user_torch():
         print("  CUDA PyTorch available: " + str(torch.__file__))
         return True
 
-    # torch exists but CUDA not available
-    print("  PyTorch found but CUDA is not available.")
+    if (
+        hasattr(torch, "backends")
+        and hasattr(torch.backends, "mps")
+        and torch.backends.mps.is_available()
+    ):
+        print("  MPS (Apple Silicon) PyTorch available: " + str(torch.__file__))
+        return True
+
+    # torch exists but no GPU accelerator available
+    print("  PyTorch found but no GPU accelerator (CUDA/MPS) is available.")
+    if sys.platform == "darwin":
+        print("  Continuing with CPU mode.")
+        return False
     _gpu_info = detect_gpu_info()
     if _gpu_info:
         _gen = _gpu_info["generation"]
@@ -875,7 +887,9 @@ def prepare_environment() -> bool:
     # Bootstrap uv (fast installer) — falls back to pip if unavailable
     ensure_uv()
 
-    # Detect NVIDIA GPU architecture to pick the right CUDA version
+    # Detect NVIDIA GPU architecture to pick the right CUDA version.
+    # CUDA wheels are NVIDIA-only; without an NVIDIA GPU (e.g. macOS) the
+    # cu124 index has no usable wheels, so torch should be installed normally.
     _gpu_info = detect_gpu_info()
     if _gpu_info:
         print(_gpu_info["message"])
@@ -883,6 +897,13 @@ def prepare_environment() -> bool:
             # torch_index is None → GPU too old for CUDA PyTorch (e.g. Kepler)
             print("  Skipping CUDA PyTorch setup for this GPU.")
             return False
+    elif sys.platform != "win32":
+        print(
+            "--reinstall-torch only handles NVIDIA CUDA PyTorch.\n"
+            "  No NVIDIA GPU detected; install torch normally instead:\n"
+            "    pip install torch torchvision torchaudio"
+        )
+        return False
 
     _torch_index = (_gpu_info or {}).get("torch_index") or "https://download.pytorch.org/whl/cu124"
 
