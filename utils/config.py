@@ -459,16 +459,16 @@ class ProgramConfig(Config):
     show_text_style_preset: bool = True
     expand_tstyle_panel: bool = True
     show_text_effect_panel: bool = True
-    expand_teffect_panel: bool = True
+    # 铺右栏后默认收起成标题条（右栏不滚动，展开才占高，避免撑爆）。
+    expand_teffect_panel: bool = False
     text_advanced_format_panel: bool = True
     expand_tadvanced_panel: bool = True
     text_transform_panel: bool = True
     expand_ttransform_panel: bool = True
     # 注解停靠面板（PS 式图标栏入口，Ruby/连字/旧式数字）：记忆开合
     annotation_dock_open: bool = False
-    # 图标栏停靠面板开合记忆：着重号 / 效果 / 文本变换 / 撤销历史
+    # 图标栏停靠面板开合记忆：着重号 / 文本变换 / 撤销历史
     emphasis_dock_open: bool = False
-    effects_dock_open: bool = False
     transform_dock_open: bool = False
     history_dock_open: bool = False
     # 修复区历史浮层（左缘窄栏入口，DrawingPanel）开合记忆
@@ -565,6 +565,14 @@ class ProgramConfig(Config):
                 "Discard invalid quick_insert_characters config: expected a string."
             )
             config_dict.pop("quick_insert_characters")
+
+        # Tolerate stale persisted keys: a field removed from ProgramConfig
+        # (e.g. ``effects_dock_open`` after the effect panel moved into the
+        # right column) would otherwise crash ``ProgramConfig(**config_dict)``
+        # with a TypeError.  Drop anything the current dataclass no longer
+        # declares.
+        known = {f.name for f in fields(ProgramConfig)}
+        config_dict = {k: v for k, v in config_dict.items() if k in known}
 
         return ProgramConfig(**config_dict)
 

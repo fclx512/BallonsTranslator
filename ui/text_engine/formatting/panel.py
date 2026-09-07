@@ -388,6 +388,10 @@ class FontSizeBox(QFrame):
         self.upBtn.clicked.connect(self.onUpBtnClicked)
         self.downBtn.clicked.connect(self.onDownBtnClicked)
         self.fcombobox = SizeComboBox([1, 1000], 'font_size', self)
+        # 字号是粗调字段：5px=1pt（0.2/px），拖拽吸附整数避免小数抖动
+        self.fcombobox.drag_step_provider = 1.0
+        self.fcombobox.precision = 1
+        self.fcombobox.drag_integer = True
         self.fcombobox.setObjectName("FontFormatSizeBox")
         self.fcombobox.addItems([
             "5", "5.5", "6.5", "7.5", "8", "9", "10", "10.5",
@@ -716,7 +720,7 @@ class FontFormatPanel(Widget):
             )
         )
 
-        self.strokeWidthBox = SizeComboBox([0, 10], 'stroke_width', self)
+        self.strokeWidthBox = SizeComboBox([0, 1], 'stroke_width', self)
         self.strokeWidthBox.setObjectName("FontFormatSizeBox")
         self.strokeWidthBox.addItems(["0.1"])
         self.strokeWidthBox.setToolTip(self.tr("Change stroke width"))

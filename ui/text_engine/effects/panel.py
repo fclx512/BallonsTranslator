@@ -1,9 +1,10 @@
 """Selection and stack orchestration for item-wide text effects.
 
 Port of upstream v1.5.13 ``panel.py`` with the fork scope trim: mask /
-texture / image / filter families are out of scope (效果栈移植计划 §六).
-Layout follows the transform dock hosting contract: the panel is a
-``PanelArea`` passed directly to ``RailDockPanel``.
+texture / image families are out of scope (效果栈移植计划 §六).  Filter is
+ported in this batch (pipeline, cards, panel).  Layout follows the
+transform dock hosting contract: the panel is a ``PanelArea`` passed
+directly to ``RailDockPanel``.
 """
 
 from typing import Iterator, Optional, Sequence, Tuple, TYPE_CHECKING
@@ -21,6 +22,7 @@ from qtpy.QtWidgets import (
 
 from utils.fontformat import FontFormat
 from utils.text_effects import (
+    FilterEffect,
     GlowEffect,
     HollowEffect,
     ShadowEffect,
@@ -31,20 +33,21 @@ from utils.text_effects import (
 )
 
 from ... import shared_widget as SW
-from ui.custom_widget import ComboBox, PanelArea
+from ui.custom_widget import PanelArea
 from ui.misc import themed_icon_path
 from .cards import (
     EffectNumericControl,
+    FilterEffectCard,
     GlowEffectCard,
     ShadowEffectCard,
-    StrokeEffectCard,
     TextFillEffectCard,
-    _labeled_effect_editor,
+    _filter_ui_text,
 )
 from .edit_session import (
     effect_reorder_is_aligned,
     matched_effect_occurrences,
 )
+from .filters import get_filter_registry
 from .gradient_editor import InlineLinearGradientEditor
 
 if TYPE_CHECKING:
@@ -60,11 +63,11 @@ class TextEffectPanel(PanelArea):
     parameter_commit_requested = Signal(int, str, object)
     preview_canceled = Signal(int, str)
     add_effect_requested = Signal(str)
+    add_filter_requested = Signal(str)
     hollow_enabled_requested = Signal(bool)
     remove_effect_requested = Signal(int)
     move_effect_requested = Signal(int, int)
     color_dialog_active_changed = Signal(bool)
-    line_spacing_type_requested = Signal(int)
 
     MAX_CONTENT_HEIGHT = 480
 
@@ -151,7 +154,6 @@ class TextEffectPanel(PanelArea):
         add_menu.setObjectName('TextEffectAddMenu')
         self.add_effect_actions = {}
         for label, effect_type, icon_name in (
-            (self.tr('Stroke'), 'stroke', 'text-effect-stroke.svg'),
             (self.tr('Shadow'), 'shadow', 'text-effect-shadow.svg'),
             (self.tr('Glow'), 'glow', 'text-effect-glow.svg'),
             (self.tr('Gradient'), 'gradient', 'text-effect-gradient.svg'),
@@ -162,6 +164,17 @@ class TextEffectPanel(PanelArea):
             action.setData(effect_type)
             action.triggered.connect(self._on_add_effect_triggered)
             self.add_effect_actions[effect_type] = action
+        self.filter_add_menu = add_menu.addMenu(
+            QIcon(themed_icon_path('text-effect-filter.svg')),
+            self.tr('Filter'),
+        )
+        for spec in get_filter_registry().specs:
+            action = self.filter_add_menu.addAction(
+                QIcon(themed_icon_path('text-effect-filter.svg')),
+                _filter_ui_text(spec, spec.name),
+            )
+            action.setData(spec.filter_id)
+            action.triggered.connect(self._on_add_filter_triggered)
         # 漏挂 setMenu 是纯静默失效（菜单建好但点击无响应）——InstantPopup
         # 按钮必须有这一行（2026-09-03 首版验收教训）
         self.add_effect_button.setMenu(add_menu)
@@ -173,21 +186,6 @@ class TextEffectPanel(PanelArea):
         top_row.addWidget(self.hollow_toggle_button)
         top_row.addStretch()
         top_row.addWidget(self.overall_opacity_control)
-
-        # 行距类型：低频项，从旧 ◐ 浮层迁来（浮层宽度容得下英文长文案，
-        # 2026-09-06 用户拍板：不放右栏）
-        self.line_spacing_type_box = ComboBox(self.scrollContent)
-        self.line_spacing_type_box.setObjectName("EffectLineSpacingBox")
-        self.line_spacing_type_box.addItem(self.tr("Proportional"), 0)
-        self.line_spacing_type_box.addItem(self.tr("Distance"), 1)
-        self.line_spacing_type_box.currentIndexChanged.connect(
-            self._on_line_spacing_type_changed
-        )
-        self.line_spacing_row = _labeled_effect_editor(
-            self.scrollContent,
-            self.tr("Line Spacing Type"),
-            self.line_spacing_type_box,
-        )
 
         self.cards_layout = QVBoxLayout()
         self.cards_layout.setContentsMargins(0, 0, 0, 0)
@@ -209,7 +207,6 @@ class TextEffectPanel(PanelArea):
         layout.setSpacing(8)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         layout.addLayout(top_row)
-        layout.addWidget(self.line_spacing_row)
         layout.addLayout(self.base_card_layout)
         layout.addLayout(self.cards_layout)
         self.setContentLayout(layout)
@@ -254,7 +251,10 @@ class TextEffectPanel(PanelArea):
                 else effect_key
             )
             if effect_type == 'stroke':
-                card = StrokeEffectCard(index, self.scrollContent)
+                # 描边不设独立效果卡（2026-09-08 用户拍板退役：与主面板
+                # 轮廓行实现重复）。栈内 StrokeEffect 仍由轮廓行经 legacy
+                # 视图读写并正常渲染，只是不再建卡。
+                continue
             elif effect_type == 'shadow':
                 card = ShadowEffectCard(index, self.scrollContent)
             elif effect_type == 'glow':
@@ -269,6 +269,18 @@ class TextEffectPanel(PanelArea):
                     continue
                 card = TextFillEffectCard(
                     index, fill_effect.paint.paint_type, self.scrollContent
+                )
+            elif effect_type == 'filter':
+                filter_effect = (
+                    None if seed is None else seed.effects[index]
+                )
+                if not isinstance(filter_effect, FilterEffect):
+                    continue
+                spec = get_filter_registry().get_spec(
+                    filter_effect.filter_id
+                )
+                card = FilterEffectCard(
+                    index, filter_effect.filter_id, spec, self.scrollContent
                 )
             else:
                 continue
@@ -285,9 +297,10 @@ class TextEffectPanel(PanelArea):
                 self.parameter_commit_requested.emit
             )
             card.preview_canceled.connect(self.preview_canceled.emit)
-            card.color_dialog_active_changed.connect(
-                self.color_dialog_active_changed.emit
-            )
+            if hasattr(card, 'color_dialog_active_changed'):
+                card.color_dialog_active_changed.connect(
+                    self.color_dialog_active_changed.emit
+                )
             card.move_requested.connect(self._move_visual_effect)
             card.remove_requested.connect(self.remove_effect_requested.emit)
             (
@@ -350,7 +363,9 @@ class TextEffectPanel(PanelArea):
             self._effect_sequence(reference), reference
         )
         matched = matched_effect_occurrences(states)
-        movable_types = (StrokeEffect, ShadowEffect, GlowEffect)
+        movable_types = (
+            StrokeEffect, ShadowEffect, GlowEffect, FilterEffect,
+        )
         movable_indices = [
             index
             for index, effect in enumerate(reference.effects)
@@ -401,18 +416,6 @@ class TextEffectPanel(PanelArea):
         self._set_effect_states(
             [item.blk.fontformat.text_effects for item in items]
         )
-
-    def set_line_spacing_type(self, value: int) -> None:
-        with QSignalBlocker(self.line_spacing_type_box):
-            index = self.line_spacing_type_box.findData(int(value))
-            if index >= 0:
-                self.line_spacing_type_box.setCurrentIndex(index)
-
-    def _on_line_spacing_type_changed(self, index: int) -> None:
-        if index >= 0:
-            self.line_spacing_type_requested.emit(
-                int(self.line_spacing_type_box.itemData(index))
-            )
 
     def iter_controls(self) -> Iterator[EffectNumericControl]:
         yield self.overall_opacity_control
@@ -494,9 +497,15 @@ class TextEffectPanel(PanelArea):
     def _on_add_effect_triggered(self, _checked: bool = False) -> None:
         action = self.sender()
         if action is not None and action.data() in {
-            'stroke', 'shadow', 'glow', 'gradient',
+            'shadow', 'glow', 'gradient',
         }:
             self.add_effect_requested.emit(action.data())
+
+    def _on_add_filter_triggered(self, _checked: bool = False) -> None:
+        action = self.sender()
+        filter_id = None if action is None else action.data()
+        if isinstance(filter_id, str):
+            self.add_filter_requested.emit(filter_id)
 
     def _set_hollow_toggle_state(
         self, enabled: Optional[bool]

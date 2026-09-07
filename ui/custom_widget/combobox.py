@@ -22,6 +22,14 @@ from .push_button import NoBorderPushBtn
 from .spinbox import DragAdjustMixin
 
 
+def _format_drag_value(value: float) -> str:
+    """把拖拽/设置后的数值显示成去尾零字符串（5.0 → "5"，10.50 → "10.5"）。"""
+    text = str(value)
+    if "." in text:
+        text = text.rstrip("0").rstrip(".")
+    return text
+
+
 def themed_icon(filename: str) -> str:
     """惰性解析图标主题路径（避免 ui.misc 早导入环）。"""
     from ui.misc import themed_icon_path
@@ -56,12 +64,35 @@ class SmallComboBox(ComboBox):
     pass
 
 
-class BottomBorderComboBox(QComboBox):
+class WidePopupComboMixin:
+    """下拉弹出列表按最长条目撑宽，闭合态宽度不受内容牵引。
+
+    组合框本体保持布局给定的稳定宽度（长名截断显示）；点击展开时把
+    弹出视图的最小宽度抬到最长条目宽，完整显示不裁剪。这正是效果卡
+    选择器/行距类型等长文本下拉栏需要的「可变宽」特性——弹出层可以宽于
+    闭合框（放弃对齐），但闭合态不撑破卡片布局。
+    """
+
+    def showPopup(self):
+        view = self.view()
+        if view is not None:
+            need = view.sizeHintForColumn(0)
+            if need >= 0:
+                # 弹出后滚动条可能出现，预留其宽度
+                need += view.verticalScrollBar().sizeHint().width()
+                need += 2 * view.frameWidth() + 8
+                view.setMinimumWidth(max(need, self.width()))
+        super().showPopup()
+
+
+class BottomBorderComboBox(WidePopupComboMixin, QComboBox):
     """效果卡头部/参数区的紧凑选择器：内联 chevron 图标 + 可选文本对齐。
 
     上游 v1.5.13 同名控件的下划线视觉由 fork QSS 重皮为填充输入框风格
     （objectName TextEffectParamEditor，与效果参数编辑器同款）；尺寸采样
     语义保留——setWidthSampleText 抬高 sizeHint 下限，闭合态仍可收缩。
+    弹出列表经 :class:`WidePopupComboMixin` 撑宽到最长条目，闭合框被
+    卡片压缩时选项名仍完整可读。
     """
 
     ARROW_SIZE = 12
@@ -253,6 +284,8 @@ class SizeComboBox(DragAdjustMixin, QComboBox):
         # 每步灵敏度（drag_px_per_step 像素对应的值增量），可设为
         # callable 动态给出（如行距 Distance 类型加大步长）；None 用默认
         self.drag_step_provider = None
+        # 值保留的小数位数（拖拽取整/显示用）；字号等粗调字段设为 1
+        self.precision = 2
         self.editTextChanged.connect(self.on_text_changed)
         self.activated.connect(self.on_current_index_changed)
         self.setEditable(True)
@@ -289,7 +322,10 @@ class SizeComboBox(DragAdjustMixin, QComboBox):
         return self.value()
 
     def _drag_value_for(self, raw: float) -> float:
-        return round(raw, 2)
+        # drag_integer 时拖拽吸附到整数（字号粗调；速率不变）
+        if getattr(self, "drag_integer", False):
+            return int(round(raw))
+        return round(raw, self.precision)
 
     def _apply_drag_value(self, value: float):
         # 拖拽中只静默刷新显示（沿用旧拖拽标签语义），提交统一在
@@ -304,7 +340,7 @@ class SizeComboBox(DragAdjustMixin, QComboBox):
     def _enter_edit_mode(self):
         self.setFocus()
         self.lineEdit().selectAll()
-        self.setCursor(Qt.CursorShape.IBeamCursor)
+        self._refresh_drag_appearance()
 
     # ---- lineEdit 事件代理 ------------------------------------------------
 
@@ -328,7 +364,7 @@ class SizeComboBox(DragAdjustMixin, QComboBox):
                         le.releaseMouse()
                     return True
             if t == QEvent.Type.FocusIn:
-                self.setCursor(Qt.CursorShape.IBeamCursor)
+                self._drag_hover_cursor()
             elif t == QEvent.Type.FocusOut:
                 self._drag_hover_cursor()
         return super().eventFilter(obj, ev)
@@ -358,7 +394,7 @@ class SizeComboBox(DragAdjustMixin, QComboBox):
 
     def setValue(self, value: float):
         value = min(self.max_val, max(self.min_val, value))
-        self.setCurrentText(str(round(value, 2)))
+        self.setCurrentText(_format_drag_value(round(value, self.precision)))
 
     def changeByDelta(self, delta: float, multiplier=0.01):
         if isinstance(multiplier, Callable):

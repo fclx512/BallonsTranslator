@@ -1686,6 +1686,22 @@ Hide them all? You can move them back later.</source>
             <source>Text Effects</source>
             <translation>文字效果</translation>
         </message>
+        <message>
+            <source>Distance</source>
+            <translation>距离</translation>
+        </message>
+        <message>
+            <source>Line Spacing Type</source>
+            <translation>行距类型</translation>
+        </message>
+        <message>
+            <source>Line spacing type</source>
+            <translation>行距类型</translation>
+        </message>
+        <message>
+            <source>Proportional</source>
+            <translation>比例</translation>
+        </message>
     </context>
     <context>
         <name>FontStyleManager</name>
@@ -6831,10 +6847,6 @@ This maps automatically to each provider's native parameter
             <translation>发光混合</translation>
         </message>
         <message>
-            <source>Glow Color</source>
-            <translation>发光颜色</translation>
-        </message>
-        <message>
             <source>Glow Fill</source>
             <translation>发光填充</translation>
         </message>
@@ -6979,10 +6991,6 @@ This maps automatically to each provider's native parameter
             <translation>阴影混合</translation>
         </message>
         <message>
-            <source>Shadow Color</source>
-            <translation>阴影颜色</translation>
-        </message>
-        <message>
             <source>Shadow Fill</source>
             <translation>阴影填充</translation>
         </message>
@@ -6993,49 +7001,6 @@ This maps automatically to each provider's native parameter
         <message>
             <source>Spread</source>
             <translation>扩散</translation>
-        </message>
-    </context>
-    <context>
-        <name>StrokeEffectCard</name>
-        <message>
-            <source>Center</source>
-            <translation>居中</translation>
-        </message>
-        <message>
-            <source>Inside</source>
-            <translation>内部</translation>
-        </message>
-        <message>
-            <source>Opacity</source>
-            <translation>不透明度</translation>
-        </message>
-        <message>
-            <source>Outside</source>
-            <translation>外部</translation>
-        </message>
-        <message>
-            <source>Stroke</source>
-            <translation>描边</translation>
-        </message>
-        <message>
-            <source>Stroke Blend</source>
-            <translation>描边混合</translation>
-        </message>
-        <message>
-            <source>Stroke Color</source>
-            <translation>描边颜色</translation>
-        </message>
-        <message>
-            <source>Stroke Fill</source>
-            <translation>描边填充</translation>
-        </message>
-        <message>
-            <source>Stroke Position</source>
-            <translation>描边位置</translation>
-        </message>
-        <message>
-            <source>Width</source>
-            <translation>宽度</translation>
         </message>
     </context>
     <context>
@@ -7073,10 +7038,6 @@ This maps automatically to each provider's native parameter
             <translation>关闭镂空</translation>
         </message>
         <message>
-            <source>Distance</source>
-            <translation>距离</translation>
-        </message>
-        <message>
             <source>Enable Hollow</source>
             <translation>开启镂空</translation>
         </message>
@@ -7101,20 +7062,12 @@ This maps automatically to each provider's native parameter
             <translation>浅色</translation>
         </message>
         <message>
-            <source>Line Spacing Type</source>
-            <translation>行距类型</translation>
-        </message>
-        <message>
             <source>Linear Burn</source>
             <translation>线性加深</translation>
         </message>
         <message>
             <source>Linear Dodge (Add)</source>
             <translation>线性减淡（添加）</translation>
-        </message>
-        <message>
-            <source>Long / Extrude</source>
-            <translation>长投影 / 挤出</translation>
         </message>
         <message>
             <source>Multiply</source>
@@ -7133,10 +7086,6 @@ This maps automatically to each provider's native parameter
             <translation>文字与全部效果的整体不透明度</translation>
         </message>
         <message>
-            <source>Proportional</source>
-            <translation>比例</translation>
-        </message>
-        <message>
             <source>Screen</source>
             <translation>滤色</translation>
         </message>
@@ -7145,8 +7094,88 @@ This maps automatically to each provider's native parameter
             <translation>阴影</translation>
         </message>
         <message>
-            <source>Stroke</source>
-            <translation>描边</translation>
+            <source>Activity</source>
+            <translation>活动度</translation>
+        </message>
+        <message>
+            <source>Amount</source>
+            <translation>数量</translation>
+        </message>
+        <message>
+            <source>Block Size</source>
+            <translation>块大小</translation>
+        </message>
+        <message>
+            <source>Bloom</source>
+            <translation>辉光</translation>
+        </message>
+        <message>
+            <source>Color</source>
+            <translation>颜色</translation>
+        </message>
+        <message>
+            <source>Filter</source>
+            <translation>滤镜</translation>
+        </message>
+        <message>
+            <source>Gaussian Blur</source>
+            <translation>高斯模糊</translation>
+        </message>
+        <message>
+            <source>Glitch</source>
+            <translation>毛刺</translation>
+        </message>
+        <message>
+            <source>Grain</source>
+            <translation>颗粒</translation>
+        </message>
+        <message>
+            <source>Hardness</source>
+            <translation>硬度</translation>
+        </message>
+        <message>
+            <source>Intensity</source>
+            <translation>强度</translation>
+        </message>
+        <message>
+            <source>Monochrome</source>
+            <translation>单色</translation>
+        </message>
+        <message>
+            <source>Noise</source>
+            <translation>噪点</translation>
+        </message>
+        <message>
+            <source>RGB Split</source>
+            <translation>RGB 分离</translation>
+        </message>
+        <message>
+            <source>Radius</source>
+            <translation>半径</translation>
+        </message>
+        <message>
+            <source>Seed</source>
+            <translation>种子</translation>
+        </message>
+        <message>
+            <source>Shift</source>
+            <translation>位移</translation>
+        </message>
+        <message>
+            <source>Size</source>
+            <translation>大小</translation>
+        </message>
+        <message>
+            <source>Threshold</source>
+            <translation>阈值</translation>
+        </message>
+        <message>
+            <source>Fill</source>
+            <translation>填充</translation>
+        </message>
+        <message>
+            <source>Solid</source>
+            <translation>纯色</translation>
         </message>
     </context>
     <context>
@@ -7162,21 +7191,6 @@ This maps automatically to each provider's native parameter
         <message>
             <source>Opacity</source>
             <translation>不透明度</translation>
-        </message>
-    </context>
-    <context>
-        <name>_EffectCardMixin</name>
-        <message>
-            <source>Fill</source>
-            <translation>填充</translation>
-        </message>
-        <message>
-            <source>Gradient</source>
-            <translation>渐变</translation>
-        </message>
-        <message>
-            <source>Solid</source>
-            <translation>纯色</translation>
         </message>
     </context>
 </TS>

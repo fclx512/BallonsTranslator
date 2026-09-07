@@ -306,6 +306,15 @@ NoArrowsSpinBox, NoArrowsDoubleSpinBox {
 NoArrowsSpinBox:focus, NoArrowsDoubleSpinBox:focus {
     border: 1px solid @accentPrimary;
 }
+/* Blender 式拖拽外观：悬停数字提亮、背景微提亮；拖拽背景再深一档（数字不变） */
+NoArrowsSpinBox[dragState="hover"], NoArrowsDoubleSpinBox[dragState="hover"] {
+    background: @dragHoverBgColor;
+    border: 1px solid @accentPrimary;
+}
+NoArrowsSpinBox[dragState="drag"], NoArrowsDoubleSpinBox[dragState="drag"] {
+    background: @dragActiveBgColor;
+    border: 1px solid @accentPrimary;
+}
 NoArrowsSpinBox:disabled, NoArrowsDoubleSpinBox:disabled {
     background: transparent;
     border: 1px solid @disabledForegroundColor;
@@ -402,7 +411,13 @@ SizeComboBox {
     border-radius: 4px;
 }
 
-SizeComboBox::hover {
+/* Blender 式拖拽外观（含 SmallSizeComboBox 子类）：悬停/拖拽改背景+描边 */
+SizeComboBox[dragState="hover"], SmallSizeComboBox[dragState="hover"] {
+    background: @dragHoverBgColor;
+    border: 1px solid @accentPrimary;
+}
+SizeComboBox[dragState="drag"], SmallSizeComboBox[dragState="drag"] {
+    background: @dragActiveBgColor;
     border: 1px solid @accentPrimary;
 }
 

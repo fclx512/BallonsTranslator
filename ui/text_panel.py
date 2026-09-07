@@ -40,6 +40,8 @@ from .custom_widget import (
     SizeComboBox,
     SmallComboBox,
     SmallParamLabel,
+    SizeControlLabel,
+    WidePopupComboMixin,
     Widget,
 )
 from .text_style_presets import TextStylePresetPanel
@@ -278,6 +280,10 @@ class FontSizeBox(QFrame):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.fcombobox = SizeComboBox([1, 200], "font_size", self)
+        # 字号是粗调字段：5px=1pt（0.2/px），拖拽吸附整数避免小数抖动
+        self.fcombobox.drag_step_provider = 1.0
+        self.fcombobox.precision = 1
+        self.fcombobox.drag_integer = True
         self.fcombobox.addItems([str(v) for v in C.pcfg.font_size_presets])
         self.fcombobox.param_changed.connect(self.param_changed)
         # 三位数（如 "200"）及多字号标记（如 "150+"）不被省略号截断；
@@ -298,25 +304,6 @@ class FontItemDelegate(QStyledItemDelegate):
             # 将选项的字体替换为当前条目对应的字体家族
             option.font = QFont(font_family, option.font.pointSize())
         super().paint(painter, option, index)
-
-
-class WidePopupComboMixin:
-    """下拉弹出列表按最长条目撑宽，闭合态宽度不受内容牵引。
-
-    组合框本体保持布局给定的稳定宽度（长名截断显示）；点击展开时把
-    弹出视图的最小宽度抬到最长条目宽，完整显示不裁剪。
-    """
-
-    def showPopup(self):
-        view = self.view()
-        if view is not None:
-            need = view.sizeHintForColumn(0)
-            if need >= 0:
-                # 弹出后滚动条可能出现，预留其宽度
-                need += view.verticalScrollBar().sizeHint().width()
-                need += 2 * view.frameWidth() + 8
-                view.setMinimumWidth(max(need, self.width()))
-        super().showPopup()
 
 
 class FontFamilyComboBox(WidePopupComboMixin, ComboBox):
@@ -348,6 +335,11 @@ class FontFamilyComboBox(WidePopupComboMixin, ComboBox):
 class FontStyleComboBox(WidePopupComboMixin, ComboBox):
     """字重选择框：闭合态宽度由布局拉伸固定（不随字重名变化），
     弹出列表经 WidePopupComboMixin 撑宽到最长条目。"""
+
+
+class _WidePopupCombo(WidePopupComboMixin, ComboBox):
+    """闭合态内容自适应、弹出列表经 WidePopupComboMixin 撑宽的长文本下拉。
+    行距类型等低频长名选项用它，闭合框不撑破行、弹出仍完整显示。"""
 
 
 class AnnotationFormatGroup(QFrame):
@@ -595,6 +587,30 @@ class FontFormatPanel(Widget):
         # 数值框统一 80px：容纳三位数与混合态标记（如 "150+"），三框同宽成列
         self.lineSpacingBox.setMinimumWidth(80)
 
+        # 行距拖拽图标标签（QSS #lineSpacingLabel 图标化）。Blender 式改版
+        # 曾删除，2026-09-07 用户要求恢复：拖标签实时预览、松手提交。
+        self.lineSpacingLabel = SizeControlLabel(
+            self, direction=1, transparent_bg=False
+        )
+        self.lineSpacingLabel.setObjectName("lineSpacingLabel")
+        self.lineSpacingLabel.size_ctrl_changed.connect(
+            self.lineSpacingBox.changeByDelta
+        )
+        self.lineSpacingLabel.btn_released.connect(
+            lambda: self.on_param_changed(
+                "line_spacing", self.lineSpacingBox.value()
+            )
+        )
+
+        self.lineSpacingTypeBox = _WidePopupCombo(self)
+        self.lineSpacingTypeBox.setObjectName("EffectLineSpacingBox")
+        self.lineSpacingTypeBox.setToolTip(self.tr("Line spacing type"))
+        self.lineSpacingTypeBox.addItem(self.tr("Proportional"), 0)
+        self.lineSpacingTypeBox.addItem(self.tr("Distance"), 1)
+        self.lineSpacingTypeBox.currentIndexChanged.connect(
+            self._on_line_spacing_type_changed
+        )
+
         self.colorPicker = ColorPickerLabel(self, param_name="frgb")
         self.colorPicker.setToolTip(self.tr("Change font color"))
         self.colorPicker.changingColor.connect(self.changingColor)
@@ -635,7 +651,7 @@ class FontFormatPanel(Widget):
             )
         )
 
-        self.strokeWidthBox = SizeComboBox([0, 10], "stroke_width", self)
+        self.strokeWidthBox = SizeComboBox([0, 1], "stroke_width", self)
         self.strokeWidthBox.addItems([str(v) for v in C.pcfg.stroke_width_presets])
         self.strokeWidthBox.setToolTip(self.tr("Change stroke width"))
         self.strokeWidthBox.param_changed.connect(self.on_param_changed)
@@ -658,7 +674,23 @@ class FontFormatPanel(Widget):
         self.letterSpacingBox.setMinimumWidth(80)
         self.letterSpacingBox.param_changed.connect(self.on_param_changed)
 
+        # 字距拖拽图标标签（QSS #letterSpacingLabel 图标化）。Blender 式改版
+        # 曾删除，2026-09-07 用户要求恢复。
+        self.letterSpacingLabel = SizeControlLabel(
+            self, direction=0, transparent_bg=False
+        )
+        self.letterSpacingLabel.setObjectName("letterSpacingLabel")
+        self.letterSpacingLabel.size_ctrl_changed.connect(
+            self.letterSpacingBox.changeByDelta
+        )
+        self.letterSpacingLabel.btn_released.connect(
+            lambda: self.on_param_changed(
+                "letter_spacing", self.letterSpacingBox.value()
+            )
+        )
+
         lettersp_hlayout = QHBoxLayout()
+        lettersp_hlayout.addWidget(self.letterSpacingLabel)
         lettersp_hlayout.addWidget(self.letterSpacingBox)
         lettersp_hlayout.setSpacing(shared.WIDGET_SPACING_CLOSE)
 
@@ -677,28 +709,15 @@ class FontFormatPanel(Widget):
         )
 
         # 效果面板（上游 v1.5.13 移植，scope 裁剪见效果栈移植计划 §六）。
-        # 效果栈整栈一个入口：原 ◐ 文本样式浮层退役，阴影/渐变/不透明度
-        # 由效果卡与整体不透明度取代；行距类型低频且英文文案长，迁到本
-        # 浮层顶部一行（2026-09-06 用户拍板留浮层）。
+        # 铺右栏（用户拍板）：效果栈整栈一个可折叠 Section，直接经
+        # view_widget 嵌进右栏格式面板（上游 formatting/panel.py 同款结构），
+        # 不再走窄栏浮层。阴影/渐变/不透明度由效果卡与整体不透明度取代。
         self.effects_panel = TextEffectPanel(
             self.tr("Text Effects"),
             config_name="show_text_effect_panel",
             config_expand_name="expand_teffect_panel",
         )
         self.effects_editor = TextEffectEditSession(self, self.effects_panel)
-        # 行距类型提交走通用参数路径；效果增删/启停提交后即时刷新 rail 角标
-        self.effects_panel.line_spacing_type_requested.connect(
-            self._on_effect_line_spacing_type
-        )
-        for _sig in (
-            self.effects_panel.value_commit_requested,
-            self.effects_panel.add_effect_requested,
-            self.effects_panel.remove_effect_requested,
-            self.effects_panel.move_effect_requested,
-            self.effects_panel.hollow_enabled_requested,
-        ):
-            _sig.connect(self._update_effects_indicator)
-        self.effects_panel.hide()
 
         # Text transform panel (stage 5 node H) — owned by the same session
         # that talks to the scene controls; the panel is only its UI front.
@@ -785,6 +804,7 @@ class FontFormatPanel(Widget):
 
         # Row 3：排版数值行 [字号] [行距] [字距]——数值框统一 80px 成列
         linesp_hlayout = QHBoxLayout()
+        linesp_hlayout.addWidget(self.lineSpacingLabel)
         linesp_hlayout.addWidget(self.lineSpacingBox)
         linesp_hlayout.setSpacing(shared.WIDGET_SPACING_CLOSE)
         size_and_metrics = QHBoxLayout()
@@ -795,12 +815,17 @@ class FontFormatPanel(Widget):
         size_and_metrics.setContentsMargins(2, 0, 2, 0)
         size_and_metrics.setSpacing(shared.WIDGET_SPACING_CLOSE)
 
-        # Row 4：描边（随效果栈回归退役；行距类型留旧文本样式浮层——
-        # 低频且英文文案过长，右栏放不下）
+        # Row 4：描边 + 行距类型同行（2026-09-08 用户拍板：行距类型下拉
+        # 并入描边行右端省一行；此前 2026-09-07 曾自效果浮层移回独立行）。
+        # 描边编辑始终走本行（经 legacy 视图写效果栈），无独立描边卡。
         stroke_row = QHBoxLayout()
         stroke_row.setAlignment(Qt.AlignmentFlag.AlignLeft)
         stroke_row.addLayout(stroke_hlayout)
+        stroke_row.addWidget(SmallParamLabel(self.tr("Line Spacing Type")))
+        stroke_row.addWidget(self.lineSpacingTypeBox)
+        stroke_row.addStretch()
         stroke_row.setContentsMargins(2, 0, 2, 0)
+        stroke_row.setSpacing(shared.WIDGET_SPACING_CLOSE)
 
         basics = QVBoxLayout()
         basics.addLayout(font_selector)
@@ -811,6 +836,12 @@ class FontFormatPanel(Widget):
         basics.setSpacing(6)
         basics.setContentsMargins(2, 3, 2, 3)
         self.vlayout.addLayout(basics)
+        self.vlayout.addWidget(_hsep())
+
+        # ── 效果 Section（铺右栏，用户拍板）─────────────────────────
+        # 可折叠 PanelArea：默认收起成标题条、展开才占高（右栏不滚动，
+        # 靠折叠撑住，与上游 formatting/panel.py 的 view_widget 同款结构）。
+        self.vlayout.addWidget(self.effects_panel.view_widget)
         self.vlayout.addWidget(_hsep())
 
         # ── Zone C：拓展样式 ──────────────────────────────────────
@@ -844,8 +875,6 @@ class FontFormatPanel(Widget):
         self.emphasis_dock = None
         self.transform_launcher = None
         self.transform_dock = None
-        self.effects_launcher = None
-        self.effects_dock = None
         self.history_launcher = None
         self.history_dock = None
 
@@ -952,9 +981,12 @@ class FontFormatPanel(Widget):
             return 0.5
         return 0.05
 
-    def _on_effect_line_spacing_type(self, value: int):
-        """行距类型提交（效果浮层行；沿用通用参数路径落账撤销事务）。"""
-        self.on_param_changed("line_spacing_type", value)
+    def _on_line_spacing_type_changed(self, index: int):
+        """行距类型提交（右栏格式面板；沿用通用参数路径落账撤销事务）。"""
+        if index >= 0:
+            self.on_param_changed(
+                "line_spacing_type", int(self.lineSpacingTypeBox.itemData(index))
+            )
 
     def _set_combo_mixed(self, combo: QComboBox, mixed: bool, current: str):
         """非可编辑下拉的混合态：插入禁用 "—" 占位项并选中。
@@ -1027,6 +1059,12 @@ class FontFormatPanel(Widget):
         self.strokeWidthBox.setValue(font_format.stroke_width)
         self.lineSpacingBox.setValue(font_format.line_spacing)
         self.letterSpacingBox.setValue(font_format.letter_spacing)
+        with QSignalBlocker(self.lineSpacingTypeBox):
+            type_index = self.lineSpacingTypeBox.findData(
+                int(font_format.line_spacing_type)
+            )
+            if type_index >= 0:
+                self.lineSpacingTypeBox.setCurrentIndex(type_index)
         # 可编辑数值下拉的混合态：显示 "—"（value() 解析失败回退旧值，
         # 不会把占位符当数值写回）
         for box, field in (
@@ -1046,9 +1084,6 @@ class FontFormatPanel(Widget):
         self.alignBtnGroup.setAlignment(font_format.alignment)
         if getattr(self, "effects_panel", None) is not None:
             self.effects_panel.set_active_format(font_format)
-            self.effects_panel.set_line_spacing_type(
-                int(font_format.line_spacing_type)
-            )
 
         self.familybox.blockSignals(False)
         self.stylebox.blockSignals(False)  # 新增
@@ -1341,16 +1376,17 @@ class FontFormatPanel(Widget):
         self.effects_editor.replace_targets(transform_items)
         if transform_items:
             self.effects_panel.set_effect_items(transform_items)
-        self._update_effects_indicator()
         self._sync_annotation_controls()
 
     def _iter_docks(self):
-        """Yield (key, launcher, dock) for the four rail docks.
+        """Yield (key, launcher, dock) for the rail docks.
 
         Launchers/docks are None until their ``install_*_launcher`` ran;
         ``getattr`` default keeps this safe on partially-built panels.
+        "effects" was a rail dock until 2026-09-07, when the effect stack
+        moved into the right format panel (铺右栏) and its launcher retired.
         """
-        for key in ("annotation", "emphasis", "transform", "effects", "history"):
+        for key in ("annotation", "emphasis", "transform", "history"):
             yield (
                 key,
                 getattr(self, f"{key}_launcher", None),
@@ -1529,54 +1565,6 @@ class FontFormatPanel(Widget):
                 title += " •"
             self.emphasis_dock.set_title(title)
 
-    def install_effects_launcher(self, rail) -> None:
-        """效果浮层入口（原 ◐ 文本样式浮层位，rail_effects 图标沿用）。
-
-        内容=TextEffectPanel（效果卡堆栈+整体不透明度+镂空开关+行距
-        类型，行距类型自旧浮层迁来）。非选中级作用域：无选中时编辑
-        全局格式（TextEffectEditSession 空 items 走 global_format）。
-        角标在当前块带活跃效果栈（has_active_effects 或整体不透明度
-        ≠1）时点亮。开合记忆在 ``pcfg.effects_dock_open``。
-        """
-        from ui.panel_rail import RailLauncherButton
-
-        self.rail = rail
-        self.effects_launcher = RailLauncherButton("rail_effects")
-        self.effects_launcher.setToolTip(self.tr("Text Effects"))
-        self.effects_launcher.toggled.connect(
-            self._on_effects_launcher_toggled
-        )
-        rail.add_launcher(self.effects_launcher)
-
-    def _ensure_effects_dock(self):
-        if self.effects_dock is None:
-            from ui.custom_widget import RailDockPanel
-
-            self.effects_dock = RailDockPanel(
-                self.tr("Text Effects"),
-                self.effects_panel,
-                rail=self.rail,
-                config_open="effects_dock_open",
-            )
-            self.effects_dock.closed.connect(
-                self._on_effects_dock_closed
-            )
-        return self.effects_dock
-
-    def _on_effects_launcher_toggled(self, checked: bool):
-        if self.effects_dock is None and not checked:
-            return
-        if checked:
-            self._close_other_docks("effects")
-            self._ensure_effects_dock().open_panel()
-        elif self.effects_dock is not None:
-            self.effects_dock.close_panel()
-
-    def _on_effects_dock_closed(self):
-        if self.effects_launcher is not None and self.effects_launcher.isChecked():
-            with QSignalBlocker(self.effects_launcher):
-                self.effects_launcher.setChecked(False)
-
     def install_history_launcher(self, rail) -> None:
         """撤销历史浮层入口（一期：仅文本栈，同注解浮层模式）。
 
@@ -1625,25 +1613,6 @@ class FontFormatPanel(Widget):
         if self.history_launcher is not None and self.history_launcher.isChecked():
             with QSignalBlocker(self.history_launcher):
                 self.history_launcher.setChecked(False)
-
-    def _update_effects_indicator(self):
-        """Rail icon corner dot while the block carries an active effect stack."""
-        item = self.textblk_item
-        active = False
-        if item is not None:
-            stack = item.blk.fontformat.text_effects
-            # has_active_effects 是 property（全新块有零宽默认描边、
-            # is_neutral 为假——勿用 len(effects) 判活跃）
-            active = (
-                stack.overall_opacity != 1.0 or stack.has_active_effects
-            )
-        if self.effects_launcher is not None:
-            self.effects_launcher.set_dot(active)
-        if self.effects_dock is not None:
-            title = self.tr("Text Effects")
-            if active:
-                title += " •"
-            self.effects_dock.set_title(title)
 
     def _ensure_annotation_dock(self):
         if self.annotation_dock is None:
@@ -1696,12 +1665,6 @@ class FontFormatPanel(Widget):
                 "transform_dock_open",
             ),
             (
-                self.effects_launcher,
-                self.effects_dock,
-                self._ensure_effects_dock,
-                "effects_dock_open",
-            ),
-            (
                 self.history_launcher,
                 self.history_dock,
                 self._ensure_history_dock,
@@ -1750,7 +1713,6 @@ class FontFormatPanel(Widget):
             self.emphasis_launcher.setEnabled(has_item)
         self._update_annotation_indicator()
         self._update_emphasis_indicator()
-        self._update_effects_indicator()
         self._update_transform_indicator()
         if item is None:
             return

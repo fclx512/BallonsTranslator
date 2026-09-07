@@ -12,7 +12,7 @@
 """
 
 from qtpy.QtCore import Qt, Signal
-from qtpy.QtGui import QMouseEvent
+from qtpy.QtGui import QColor, QMouseEvent, QPalette
 from qtpy.QtWidgets import (
     QAbstractSpinBox,
     QDoubleSpinBox,
@@ -53,6 +53,13 @@ class DragAdjustMixin:
         self._drag_active = False
         self._drag_press_x = 0.0
         self._drag_start_value = 0.0
+        self._drag_state = ""
+        self._drag_hovered = False
+        self._drag_base_palette = None
+        try:
+            self._drag_base_palette = self.lineEdit().palette()
+        except Exception:
+            self._drag_base_palette = None
 
     # ---- 子类钩子 -------------------------------------------------------
 
@@ -70,6 +77,10 @@ class DragAdjustMixin:
         return self.value()
 
     def _drag_value_for(self, raw: float) -> float:
+        # drag_integer 时拖拽吸附到整数（速率不变，只是去掉小数抖动）；
+        # 其余按字段精度取整（QSpinBox 天然整数 / QDoubleSpinBox 用 decimals）
+        if getattr(self, "drag_integer", False):
+            return int(round(raw))
         if hasattr(self, "decimals"):
             return round(raw, self.decimals())
         return int(round(raw))
@@ -96,7 +107,7 @@ class DragAdjustMixin:
         if not self._drag_active and abs(dx) >= self.drag_start_threshold:
             self._drag_pending = False
             self._drag_active = True
-            self.setCursor(Qt.CursorShape.SizeHorCursor)
+            self._refresh_drag_appearance()
             self.drag_started.emit()
         if self._drag_active:
             step = self._drag_step()
@@ -118,7 +129,7 @@ class DragAdjustMixin:
         self._drag_pending = False
         self._drag_active = False
         if was_active:
-            self.setCursor(Qt.CursorShape.SizeHorCursor)  # 仍在悬停，恢复 ↔
+            self._refresh_drag_appearance()  # 松手仍在悬停，回到 hover 外观
             self.drag_finished.emit()
         else:
             self._enter_edit_mode()
@@ -128,32 +139,111 @@ class DragAdjustMixin:
     def _enter_edit_mode(self):
         self.setFocus()
         self.selectAll()
-        self.setCursor(Qt.CursorShape.IBeamCursor)
+        self._refresh_drag_appearance()
 
-    # ---- 光标管理 --------------------------------------------------------
+    # ---- 外观状态（光标 + hover/拖拽提亮） -------------------------------
+
+    def _set_drag_state(self, state: str):
+        """写 dragState 动态属性并 repolish，驱动 QSS 的 hover/拖拽背景描边。
+
+        状态不变时提前返回，避免拖拽中每 move 反复 repolish。
+        """
+        if getattr(self, "_drag_state", None) == state:
+            return
+        self._drag_state = state
+        self.setProperty("dragState", state)
+        st = self.style()
+        st.unpolish(self)
+        st.polish(self)
+
+    def _set_drag_cursor(self, cursor):
+        """同时设置顶层控件与其内部 lineEdit 的光标。
+
+        内部 QLineEdit 自带 IBeam 文本光标、会覆盖父控件光标，若不在此一并
+        设置，悬停/拖拽时看到的仍是文本选择样式。
+        """
+        try:
+            le = self.lineEdit()
+        except Exception:
+            le = None
+        if cursor is None:
+            self.unsetCursor()
+            if le is not None:
+                le.unsetCursor()
+        else:
+            self.setCursor(cursor)
+            if le is not None:
+                le.setCursor(cursor)
+
+    def _set_drag_text_color(self, state: str):
+        """hover/拖拽时提亮数字（设内部 lineEdit 的 Text 色），否则还原。"""
+        if getattr(self, "_drag_base_palette", None) is None:
+            return
+        try:
+            le = self.lineEdit()
+        except Exception:
+            return
+        if state in ("hover", "drag"):
+            pal = le.palette()
+            pal.setColor(
+                QPalette.ColorRole.Text,
+                QColor(shared.get_theme_color("@dragTextColor")),
+            )
+            le.setPalette(pal)
+        else:
+            le.setPalette(self._drag_base_palette)
+
+    def _drag_state_from_flags(self) -> str:
+        if self._drag_active:
+            return "drag"
+        try:
+            editing = self.lineEdit().hasFocus()
+        except Exception:
+            editing = False
+        if self._drag_pending or (self._drag_hovered and not editing):
+            return "hover"
+        return ""
+
+    def _refresh_drag_appearance(self):
+        state = self._drag_state_from_flags() if self._drag_allowed() else ""
+        self._set_drag_state(state)
+        try:
+            editing = self.lineEdit().hasFocus()
+        except Exception:
+            editing = False
+        pressing = self._drag_pending or self._drag_active
+        if pressing:
+            # 按下/拖拽优先：即使 lineEdit 已获焦，拖拽态仍显水平调整光标
+            cursor = Qt.CursorShape.SizeHorCursor
+        elif editing:
+            cursor = Qt.CursorShape.IBeamCursor
+        elif self._drag_allowed() and self._drag_hovered:
+            cursor = Qt.CursorShape.SizeHorCursor
+        else:
+            cursor = None
+        self._set_drag_cursor(cursor)
+        self._set_drag_text_color(state)
 
     def _drag_hover_cursor(self):
-        if self._drag_allowed():
-            editing = getattr(self.lineEdit(), "hasFocus", lambda: False)()
-            self.setCursor(
-                Qt.CursorShape.IBeamCursor if editing
-                else Qt.CursorShape.SizeHorCursor
-            )
+        """悬停光标刷新（组合框走 lineEdit 事件代理时亦调用）。"""
+        self._refresh_drag_appearance()
 
     def enterEvent(self, ev):
-        self._drag_hover_cursor()
+        self._drag_hovered = True
+        self._refresh_drag_appearance()
         return super().enterEvent(ev)
 
     def leaveEvent(self, ev):
-        self.unsetCursor()
+        self._drag_hovered = False
+        self._refresh_drag_appearance()
         return super().leaveEvent(ev)
 
     def focusInEvent(self, ev):
-        self.setCursor(Qt.CursorShape.IBeamCursor)
+        self._refresh_drag_appearance()
         return super().focusInEvent(ev)
 
     def focusOutEvent(self, ev):
-        self._drag_hover_cursor()
+        self._refresh_drag_appearance()
         return super().focusOutEvent(ev)
 
     # ---- 鼠标事件 --------------------------------------------------------

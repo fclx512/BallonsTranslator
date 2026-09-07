@@ -11,6 +11,7 @@ from .combobox import (
     SizeComboBox,
     SmallComboBox,
     SmallSizeComboBox,
+    WidePopupComboMixin,
 )
 from .flow_layout import FlowLayout
 from .group_frame import GroupFrame

@@ -29,7 +29,7 @@ from qtpy.QtGui import (
     QPen,
 )
 from qtpy.QtWidgets import (
-    QColorDialog,
+    QDialog,
     QHBoxLayout,
     QLabel,
     QSizePolicy,
@@ -41,6 +41,7 @@ from qtpy.QtWidgets import (
 from utils.text_effects import GradientStop, LinearGradientPaint
 
 from ui.custom_widget import NoArrowsDoubleSpinBox
+from ui.custom_widget.color_picker import ColorPickerDialog
 from ui.misc import themed_icon_path
 from .paint import paint_effect_paint_preview
 
@@ -869,17 +870,24 @@ class InlineLinearGradientEditor(QWidget):
         self._publish_preview(replace(self._paint, scale=value / 100.0))
 
     def _choose_stop_color(self) -> None:
+        # fork 自研取色器（PS 式 + 屏幕吸色管）取代 win 原生 QColorDialog
+        # （2026-09-08 实机验收反馈）；colorChanging 维持原来的
+        # currentColorChanged 实时预览语义。
         self._begin_edit()
-        dialog = QColorDialog(QColor(*self._selected_stop().color), self.window())
-        dialog.currentColorChanged.connect(self._on_stop_color_preview)
-        dialog.accepted.connect(self._on_stop_color_accepted)
-        dialog.rejected.connect(self._on_stop_color_rejected)
+        dialog = ColorPickerDialog(
+            QColor(*self._selected_stop().color), self.window()
+        )
+        dialog.colorChanging.connect(self._on_stop_color_preview)
         self.color_dialog_active_changed.emit(True)
         try:
-            dialog.exec_()
+            accepted = dialog.exec_() == QDialog.DialogCode.Accepted
         finally:
             self.color_dialog_active_changed.emit(False)
             dialog.deleteLater()
+        if accepted:
+            self._on_stop_color_accepted()
+        else:
+            self._on_stop_color_rejected()
 
     def _on_stop_color_preview(self, color: QColor) -> None:
         if not color.isValid():

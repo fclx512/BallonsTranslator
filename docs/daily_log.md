@@ -2,6 +2,26 @@
 
 > 此文档用于跨 agent 同步当日改动。仅保留最近 3 天的记录，每次在对应日期中末尾写入日志。
 
+## 2026-09-08
+
+### 效果栈滤镜批收尾 + 实机验收反馈批（渲染错乱四修 / 描边卡退役 / 取色器换 fork 控件 / 行距类型并入轮廓行）
+
+**问题/需求：** 上午批（滤镜族落地 + 滤镜输出被未滤镜原文字叠回修复，见效果栈移植计划文档状态段）之后，用户实机验收反馈四项：①按钮等处渲染错乱 + 吸色器仍走 win 原生；②行距类型下拉移到轮廓行同一行、移植的独立描边卡删除（实现重复）；③渐变卡缺少选色交互（附截图）；④噪点/颗粒滤镜无效果（用户核对上游同样如此）。全部处理完毕并实机验收通过。
+
+**改动要点：**
+
+- **渲染错乱根因（离屏截图台逐卡实锤，`tmp/panel_visual.py` 法）**：Fill 行 Fill 类型选择器（`Ignored` 伸缩策略）与 stretch=1 色块同行被压成 0 宽静默消失——`ui/text_engine/effects/cards.py::_set_effect_selector_width` 加 72px 下限；描边卡色块永不渲染（唯一漏调 `paint_button.set_paint` 的卡，随卡退役消失）；"Fill" 漏翻英文 = mixin 里 `self.tr('Fill'/'Solid'/'Gradient')` 运行时上下文是各卡类名、提取器按物理位置归 `_EffectCardMixin`，词条两边永不相交——按项目惯例改 `QCoreApplication.translate('TextEffectPanel', …)` 显式上下文（ts 三词条迁移 + qm 重编）。
+- **渐变卡选色交互**：`ui/text_engine/effects/cards.py::TextFillEffectCard` 的 `InlineLinearGradientEditor` 被 `_connect_gradient_editor` 末尾统一 `hide()` 且无人再 show，编辑器（停点条/停点色块/加减停点/角度缩放）永久隐藏——渐变卡内改为常显。
+- **取色器换 fork 自研**：效果卡 solid 色块（`ui/text_engine/effects/cards.py::_on_paint_clicked`）与渐变停点色块（`ui/text_engine/effects/gradient_editor.py::_choose_stop_color`）从 `QColorDialog` 换 `ui/custom_widget/color_picker.py::ColorPickerDialog`（PS 式 + 屏幕吸色管）；停点色实时预览经 `colorChanging` 信号，accept/reject 对应 commit/cancel，预览-提交语义不变；`_build_paint_row` 的 dialog title 参数随之清理。
+- **独立描边卡退役**（用户拍板与主面板轮廓行重复）：删 `StrokeEffectCard` 类、panel Add 菜单 'stroke' 项、`ui/text_engine/effects/edit_session.py::add_effect` stroke 构造分支、描边图标 SVG（登记 audit_registry deprecated）。栈内 `StrokeEffect` 仍是活模型——轮廓行经 legacy 视图读写、渲染不变；`_rebuild_effect_cards` 对 'stroke' 键跳过建卡。
+- **行距类型并入轮廓行**：`ui/text_panel.py` 撤销 Row 3.5 独立行，行距类型下拉并入描边行右端（轮廓 [宽度][色块] 行距类型 [比例˅]）。
+- **噪点/颗粒「无效果」诊断**：机制实锤——两者只改字形内部像素，修复前的完成正面契约下未滤镜原文字精确盖回输出（剩余 129/76 个边缘像素不可感知），模糊/光晕有字形外光晕故「有效」；与用户「上游同样如此」吻合（上游同结构）。**已随上午的 `ui/text_engine/effects/renderer.py::_renders_completed_foreground` 修复（enabled Filter 计入拥有正面）一并解决**，当前树实机验收可见；新增 `tests/test_text_effects_filter.py::test_in_glyph_filters_replace_native_foreground` 钉住（>1000 像素变化阈值，防仅边缘残留的假绿）。
+- ts 清理 16 条孤儿（StrokeEffectCard 上下文整块/废弃 dialog title）+ 补 2 条；verify/pytest 全绿。
+
+**涉及文件：** `ui/text_engine/effects/cards.py`、`ui/text_engine/effects/panel.py`、`ui/text_engine/effects/edit_session.py`、`ui/text_engine/effects/gradient_editor.py`、`ui/text_panel.py`、`ui/text_engine/effects/renderer.py`（上午批）、`icons/text-effect-stroke.svg`（删）、`scripts/audit_registry.json`、`translate/zh_CN.ts`、`translate/zh_CN.qm`、`tests/test_text_effects_filter.py`、`docs/技术实现/效果栈移植与窄栏图标重绘_计划.md`
+
+---
+
 ## 2026-09-06
 
 ### 撤销体系阶段 4 第三批落地：图像修复并入全局撤销栈（3a 同区域聚合 + 3b 单一栈双视图）+ 修复区历史入口窄栏化

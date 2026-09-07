@@ -1,10 +1,15 @@
 """Reusable cards and controls for item-wide text effects.
 
-Port of upstream v1.5.13 ``cards.py`` with the fork scope trim (filter /
-image / texture / alpha-mask cards removed) and the parameter area laid
-out to the ``TransformParameterPanel`` spec: right-aligned labels, 22px
-editors, two-column grid with span-2 rows for fill, blend, and the
-gradient editor (2026-09-03 user decision, kept for the re-port).
+Port of upstream v1.5.13 ``cards.py`` with the fork scope trim (image /
+texture / alpha-mask cards removed; FilterEffectCard re-added with the
+filter pipeline) and the parameter area laid out to the
+``TransformParameterPanel`` spec: right-aligned labels, 22px editors,
+two-column grid with span-2 rows for fill, blend, and the gradient
+editor (2026-09-03 user decision, kept for the re-port).
+Fork further retires the standalone stroke card (2026-09-08: duplicate
+of the main panel stroke row, which writes the same stack entry via the
+legacy views) and swaps QColorDialog for the fork's own
+``ui/custom_widget/color_picker.py::ColorPickerDialog`` everywhere.
 """
 
 from typing import Dict, Optional, Sequence, Tuple
@@ -28,7 +33,7 @@ from qtpy.QtGui import (
     QPainter,
 )
 from qtpy.QtWidgets import (
-    QColorDialog,
+    QDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -40,8 +45,11 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
+from ui.custom_widget.color_picker import ColorPickerDialog
+
 from utils.text_effects import (
     EffectPaint,
+    FilterEffect,
     GeneratedEffectPaint,
     GlowEffect,
     LinearGradientPaint,
@@ -50,7 +58,6 @@ from utils.text_effects import (
     SHADOW_SPREAD_LIMIT,
     ShadowEffect,
     SolidPaint,
-    StrokeEffect,
     TextFillEffect,
 )
 
@@ -60,6 +67,76 @@ from ui.misc import themed_icon_path
 from ..transforms.panel import CommittedTransformControl, TransformDragLabel
 from .gradient_editor import GradientAngleDial, InlineLinearGradientEditor
 from .paint import paint_effect_paint_preview
+from .filters import (
+    FilterParamSpec,
+    FilterSpec,
+    FilterUnavailableError,
+    get_filter_registry,
+)
+
+
+def _filter_ui_text(spec: FilterSpec, text: str) -> str:
+    """Translate static built-in metadata in one extractable UI context."""
+    if not spec.builtin:
+        return text
+    translations = {
+        'Noise': lambda: QCoreApplication.translate(
+            'TextEffectPanel', 'Noise'
+        ),
+        'Grain': lambda: QCoreApplication.translate(
+            'TextEffectPanel', 'Grain'
+        ),
+        'Gaussian Blur': lambda: QCoreApplication.translate(
+            'TextEffectPanel', 'Gaussian Blur'
+        ),
+        'Bloom': lambda: QCoreApplication.translate(
+            'TextEffectPanel', 'Bloom'
+        ),
+        'Glitch': lambda: QCoreApplication.translate(
+            'TextEffectPanel', 'Glitch'
+        ),
+        'Amount': lambda: QCoreApplication.translate(
+            'TextEffectPanel', 'Amount'
+        ),
+        'Color': lambda: QCoreApplication.translate(
+            'TextEffectPanel', 'Color'
+        ),
+        'Monochrome': lambda: QCoreApplication.translate(
+            'TextEffectPanel', 'Monochrome'
+        ),
+        'Seed': lambda: QCoreApplication.translate(
+            'TextEffectPanel', 'Seed'
+        ),
+        'Size': lambda: QCoreApplication.translate(
+            'TextEffectPanel', 'Size'
+        ),
+        'Hardness': lambda: QCoreApplication.translate(
+            'TextEffectPanel', 'Hardness'
+        ),
+        'Radius': lambda: QCoreApplication.translate(
+            'TextEffectPanel', 'Radius'
+        ),
+        'Threshold': lambda: QCoreApplication.translate(
+            'TextEffectPanel', 'Threshold'
+        ),
+        'Intensity': lambda: QCoreApplication.translate(
+            'TextEffectPanel', 'Intensity'
+        ),
+        'Shift': lambda: QCoreApplication.translate(
+            'TextEffectPanel', 'Shift'
+        ),
+        'Block Size': lambda: QCoreApplication.translate(
+            'TextEffectPanel', 'Block Size'
+        ),
+        'Activity': lambda: QCoreApplication.translate(
+            'TextEffectPanel', 'Activity'
+        ),
+        'RGB Split': lambda: QCoreApplication.translate(
+            'TextEffectPanel', 'RGB Split'
+        ),
+    }
+    translator = translations.get(text)
+    return text if translator is None else translator()
 
 
 class _EffectActionButton(QToolButton):
@@ -258,10 +335,26 @@ def _effect_action_widget(
 def _set_effect_selector_width(
     selector: BottomBorderComboBox,
 ) -> None:
-    """Give every effect selector Shadow's natural content width."""
-    selector.setWidthSampleText(QCoreApplication.translate(
-        'TextEffectPanel', 'Long / Extrude'
-    ))
+    """Let effect selectors share their grid column and shrink to the dock.
+
+    The old ``setWidthSampleText('Long / Extrude')`` raised the selector's
+    minimum width to ~198px.  The fork right panel is only 348px wide, so a
+    Shadow card (whose two-column grid then needed ~382px) clipped the span-2
+    blend/Fill rows.  Shrinkable selectors let Qt compress the card to the
+    available width instead (the sizeHint is ignored, 150px ceiling keeps a
+    single selector from blowing out its column).  Cards are still sized by
+    their content when the panel is wide.
+
+    The 72px floor keeps an Ignored-policy selector sharing a row with a
+    stretch-1 sibling (the Fill row's paint swatch) from being squeezed to
+    zero width — it silently vanished there under the 348px panel
+    (2026-09-08 实机验收缺陷).
+    """
+    selector.setSizePolicy(
+        QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed
+    )
+    selector.setMinimumWidth(72)
+    selector.setMaximumWidth(150)
 
 
 class BlendModeSelector(QToolButton):
@@ -602,10 +695,17 @@ class _EffectCardMixin:
     def _build_paint_row(
         self,
         accessible_fill_name: str,
-        color_dialog_title: str,
-    ) -> Tuple[QWidget, QWidget]:
-        """Build the span-2 fill row: Fill type selector + paint swatch."""
-        fill_label = QLabel(self.tr('Fill'), self)
+    ) -> QWidget:
+        """Build the span-2 fill row: Fill type selector + paint swatch.
+
+        本方法在 mixin 里，``self.tr`` 运行时上下文是各卡片类名，而
+        i18n 提取器按物理位置归到 _EffectCardMixin——两边对不上，
+        词条永不命中（2026-09-08 实机：Fill 行英文漏翻）。按项目惯例
+        在字面量定义处显式标注 TextEffectPanel 上下文。
+        """
+        fill_label = QLabel(
+            QCoreApplication.translate('TextEffectPanel', 'Fill'), self
+        )
         fill_label.setObjectName('TextEffectParamLabel')
         fill_label.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
@@ -615,15 +715,20 @@ class _EffectCardMixin:
         )
         self.fill_type_selector.setObjectName('TextEffectParamEditor')
         self.fill_type_selector.setAccessibleName(accessible_fill_name)
-        self.fill_type_selector.addItem(self.tr('Solid'), 'solid')
-        self.fill_type_selector.addItem(self.tr('Gradient'), 'linear_gradient')
+        _set_effect_selector_width(self.fill_type_selector)
+        self.fill_type_selector.addItem(
+            QCoreApplication.translate('TextEffectPanel', 'Solid'), 'solid'
+        )
+        self.fill_type_selector.addItem(
+            QCoreApplication.translate('TextEffectPanel', 'Gradient'),
+            'linear_gradient',
+        )
         self.fill_type_selector.currentIndexChanged.connect(
             self._on_fill_type_changed
         )
         self.paint_button = EffectPaintButton(self)
         self.paint_button.clicked.connect(self._on_paint_clicked)
         self._paint_seed: Optional[GeneratedEffectPaint] = None
-        self._color_dialog_title = color_dialog_title
 
         row = QWidget(self)
         row_layout = QHBoxLayout(row)
@@ -673,12 +778,10 @@ class _EffectCardMixin:
             return
         self.color_dialog_active_changed.emit(True)
         try:
-            color = QColorDialog.getColor(
-                QColor(*paint.color),
-                self.window(),
-                self._color_dialog_title,
-            )
-            if color.isValid():
+            dialog = ColorPickerDialog(QColor(*paint.color), self.window())
+            accepted = dialog.exec_() == QDialog.DialogCode.Accepted
+            color = dialog.get_color()
+            if accepted and color.isValid():
                 self.value_commit_requested.emit(
                     self.index,
                     'paint',
@@ -725,133 +828,6 @@ class _EffectCardMixin:
         header.addWidget(action_widget)
         header.addWidget(self.visibility_button)
         return header
-
-
-class StrokeEffectCard(_EffectCard, _EffectCardMixin):
-    """One Stroke at its complete-stack semantic index."""
-
-    value_commit_requested = Signal(int, str, object)
-    value_preview_requested = Signal(int, str, object)
-    parameter_preview_requested = Signal(int, str, object)
-    parameter_commit_requested = Signal(int, str, object)
-    preview_canceled = Signal(int, str)
-    remove_requested = Signal(int)
-    move_requested = Signal(int, int)
-    color_dialog_active_changed = Signal(bool)
-
-    def __init__(self, index: int, parent=None) -> None:
-        super().__init__(parent)
-        self.index = int(index)
-        self.setObjectName('TextEffectParameterPanel')
-        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
-        )
-
-        header = self._build_header('text-effect-stroke.svg', self.tr('Stroke'))
-
-        self.position_selector = BottomBorderComboBox(
-            self, text_alignment=Qt.AlignmentFlag.AlignCenter
-        )
-        self.position_selector.setObjectName('TextEffectParamEditor')
-        self.position_selector.setAccessibleName(self.tr('Stroke Position'))
-        for label, value in (
-            (self.tr('Inside'), 'inside'),
-            (self.tr('Center'), 'center'),
-            (self.tr('Outside'), 'outside'),
-        ):
-            self.position_selector.addItem(label, value)
-        _set_effect_selector_width(self.position_selector)
-        self.position_selector.currentIndexChanged.connect(
-            self._on_position_changed
-        )
-
-        self.width_control = EffectNumericControl(
-            self.tr('Width'), 'width', 1.0, 0.0, 10.0, '', 0.01,
-            self, decimals=2,
-        )
-        self.opacity_control = EffectNumericControl(
-            self.tr('Opacity'), 'opacity', 100.0, 0.0, 1.0, '%', 1.0,
-            self, decimals=1,
-        )
-        blend_widget, self.blend_selector = _blend_control(
-            self, self.tr('Stroke Blend')
-        )
-        self.blend_selector.mode_changed.connect(
-            self._on_blend_changed
-        )
-
-        self.gradient_editor = InlineLinearGradientEditor(
-            LinearGradientPaint(), self
-        )
-        self._connect_gradient_editor(self.gradient_editor)
-
-        paint_row = self._build_paint_row(
-            self.tr('Stroke Fill'), self.tr('Stroke Color')
-        )
-
-        for control in (self.width_control, self.opacity_control):
-            control.commit_requested.connect(self._on_control_commit)
-            control.value_preview_requested.connect(
-                self._on_value_preview
-            )
-            control.preview_requested.connect(self._on_parameter_preview)
-            control.drag_commit_requested.connect(
-                self._on_parameter_commit
-            )
-            control.preview_canceled.connect(self._on_preview_canceled)
-            control.value_preview_canceled.connect(
-                self._on_preview_canceled
-            )
-
-        controls = QGridLayout()
-        controls.setContentsMargins(0, 0, 0, 0)
-        controls.setHorizontalSpacing(8)
-        controls.setVerticalSpacing(8)
-        controls.addWidget(self.position_selector, 0, 0)
-        controls.addWidget(self.width_control, 0, 1)
-        controls.addWidget(self.opacity_control, 1, 0)
-        controls.addWidget(blend_widget, 1, 1)
-        controls.addWidget(paint_row, 2, 0, 1, 2)
-        controls.addWidget(self.gradient_editor, 3, 0, 1, 2)
-        controls.setColumnStretch(0, 1)
-        controls.setColumnStretch(1, 1)
-        self._controls_layout = controls
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 6, 8, 8)
-        layout.setSpacing(8)
-        layout.addLayout(header)
-        layout.addLayout(controls)
-
-    def set_move_enabled(self, up: bool, down: bool) -> None:
-        self.move_up_button.setEnabled(up)
-        self.move_down_button.setEnabled(down)
-
-    def set_value(self, stroke: StrokeEffect) -> None:
-        self.visibility_button.set_visibility(stroke.enabled)
-        _set_blend_value(self.blend_selector, stroke)
-        with QSignalBlocker(self.position_selector):
-            self.position_selector.setCurrentIndex(
-                self.position_selector.findData(stroke.position)
-            )
-        for name, control in (
-            ('width', self.width_control),
-            ('opacity', self.opacity_control),
-        ):
-            control.set_model_value(getattr(stroke, name))
-        self._sync_paint_value(stroke.paint)
-
-    def iter_controls(self) -> Tuple[EffectNumericControl, ...]:
-        return (self.width_control, self.opacity_control)
-
-    def _on_position_changed(self, combo_index: int) -> None:
-        if combo_index >= 0:
-            self.value_commit_requested.emit(
-                self.index,
-                'position',
-                self.position_selector.itemData(combo_index),
-            )
 
 
 class ShadowEffectCard(_EffectCard, _EffectCardMixin):
@@ -953,9 +929,7 @@ class ShadowEffectCard(_EffectCard, _EffectCardMixin):
         )
         self._connect_gradient_editor(self.gradient_editor)
 
-        paint_row = self._build_paint_row(
-            self.tr('Shadow Fill'), self.tr('Shadow Color')
-        )
+        paint_row = self._build_paint_row(self.tr('Shadow Fill'))
 
         controls = QGridLayout()
         controls.setContentsMargins(0, 0, 0, 0)
@@ -1149,9 +1123,7 @@ class GlowEffectCard(_EffectCard, _EffectCardMixin):
         )
         self._connect_gradient_editor(self.gradient_editor)
 
-        paint_row = self._build_paint_row(
-            self.tr('Glow Fill'), self.tr('Glow Color')
-        )
+        paint_row = self._build_paint_row(self.tr('Glow Fill'))
 
         controls = QGridLayout()
         controls.setContentsMargins(0, 0, 0, 0)
@@ -1259,6 +1231,11 @@ class TextFillEffectCard(_EffectCard, _EffectCardMixin):
             LinearGradientPaint(), self
         )
         self._connect_gradient_editor(self.gradient_editor)
+        # 本卡即渐变卡：渐变编辑器（停点条+停点色块+角度/缩放）是它的
+        # 主体交互，不像阴影/发光卡那样按 paint 类型切换显隐。此前沿用
+        # _connect_gradient_editor 的初始 hide() 且无人再 show，编辑器
+        # 永久隐藏、选色交互整个缺失（2026-09-08 实机验收缺陷）。
+        self.gradient_editor.setVisible(True)
 
         self.opacity_control = EffectNumericControl(
             self.tr('Opacity'), 'opacity', 100.0, 0.0, 1.0, '%', 1.0,
@@ -1320,3 +1297,172 @@ class TextFillEffectCard(_EffectCard, _EffectCardMixin):
     def set_move_enabled(self, up: bool, down: bool) -> None:
         self.move_up_button.setEnabled(up)
         self.move_down_button.setEnabled(down)
+
+
+class FilterEffectCard(_EffectCard, _EffectCardMixin):
+    """One repeatable lazy filter at its complete-stack index."""
+
+    value_commit_requested = Signal(int, str, object)
+    value_preview_requested = Signal(int, str, object)
+    parameter_preview_requested = Signal(int, str, object)
+    parameter_commit_requested = Signal(int, str, object)
+    preview_canceled = Signal(int, str)
+    remove_requested = Signal(int)
+    move_requested = Signal(int, int)
+
+    def __init__(
+        self,
+        index: int,
+        filter_id: str,
+        spec: Optional[FilterSpec],
+        parent: Optional[QWidget] = None,
+    ) -> None:
+        super().__init__(parent)
+        self.index = int(index)
+        self.filter_id = filter_id
+        self.spec = spec
+        self.numeric_controls = {}
+        self.choice_selectors = {}
+        self.setObjectName('TextEffectParameterPanel')
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
+        )
+
+        title = (
+            _filter_ui_text(spec, spec.name)
+            if spec is not None
+            else self.tr('Missing Filter: {id}').format(id=filter_id)
+        )
+        header = self._build_header('text-effect-filter.svg', title)
+
+        controls = QGridLayout()
+        controls.setContentsMargins(0, 0, 0, 0)
+        controls.setHorizontalSpacing(8)
+        controls.setVerticalSpacing(8)
+        if spec is not None:
+            for position, parameter in enumerate(spec.params):
+                widget = self._parameter_widget(parameter)
+                controls.addWidget(widget, position // 2, position % 2)
+            controls.setColumnStretch(0, 1)
+            controls.setColumnStretch(1, 1)
+        self._controls_layout = controls
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(8, 6, 8, 8)
+        layout.setSpacing(8)
+        layout.addLayout(header)
+        if spec is not None and spec.params:
+            layout.addLayout(controls)
+
+    def _parameter_widget(self, parameter: FilterParamSpec) -> QWidget:
+        assert self.spec is not None
+        signal_name = 'param:' + parameter.key
+        label_text = _filter_ui_text(self.spec, parameter.label)
+        if parameter.kind in {'float', 'int'}:
+            assert parameter.minimum is not None
+            assert parameter.maximum is not None
+            control = EffectNumericControl(
+                label_text,
+                signal_name,
+                parameter.display_factor,
+                parameter.minimum,
+                parameter.maximum,
+                parameter.suffix,
+                parameter.step,
+                self,
+                decimals=parameter.decimals,
+            )
+            control.commit_requested.connect(self._on_control_commit)
+            control.value_preview_requested.connect(self._on_value_preview)
+            control.preview_requested.connect(self._on_parameter_preview)
+            control.drag_commit_requested.connect(self._on_parameter_commit)
+            control.preview_canceled.connect(self._on_preview_canceled)
+            control.value_preview_canceled.connect(self._on_preview_canceled)
+            self.numeric_controls[parameter.key] = control
+            return control
+
+        selector = BottomBorderComboBox(
+            self, text_alignment=Qt.AlignmentFlag.AlignCenter
+        )
+        selector.setObjectName('TextEffectParamEditor')
+        selector.setProperty('filter-param', parameter.key)
+        selector.setAccessibleName(label_text)
+        _set_effect_selector_width(selector)
+        choices = (
+            (('Off', False), ('On', True))
+            if parameter.kind == 'bool'
+            else parameter.choices
+        )
+        for choice_label, value in choices:
+            selector.addItem(
+                _filter_ui_text(self.spec, choice_label), value
+            )
+        selector.currentIndexChanged.connect(self._on_choice_changed)
+        self.choice_selectors[parameter.key] = selector
+        return _labeled_effect_editor(self, label_text, selector)
+
+    def set_move_enabled(self, up: bool, down: bool) -> None:
+        self.move_up_button.setEnabled(up)
+        self.move_down_button.setEnabled(down)
+
+    def set_value(self, effect: FilterEffect) -> None:
+        self.visibility_button.set_visibility(effect.enabled)
+        if self.spec is None:
+            return
+        failure = get_filter_registry().get_runtime_failure(self.filter_id)
+        if failure is not None:
+            self._set_parameter_controls_enabled(False)
+            self.setToolTip(str(failure))
+            return
+        try:
+            if effect.schema_version == self.spec.schema_version:
+                active_params = self.spec.normalize_params(
+                    effect.params_dict()
+                )
+            elif (
+                effect.enabled
+                and effect.schema_version < self.spec.schema_version
+            ):
+                active_params = dict(
+                    get_filter_registry().resolve(effect).params
+                )
+            else:
+                raise FilterUnavailableError(
+                    f'{self.spec.name} schema {effect.schema_version} '
+                    'is incompatible; enable/update it to migrate.'
+                )
+        except (FilterUnavailableError, KeyError, ValueError) as error:
+            self._set_parameter_controls_enabled(False)
+            self.setToolTip(str(error))
+            return
+        self._set_parameter_controls_enabled(True)
+        self.setToolTip('')
+        for parameter in self.spec.params:
+            value = active_params[parameter.key]
+            control = self.numeric_controls.get(parameter.key)
+            if control is not None:
+                control.set_model_value(value)
+                continue
+            selector = self.choice_selectors[parameter.key]
+            with QSignalBlocker(selector):
+                selector.setCurrentIndex(selector.findData(value))
+
+    def _set_parameter_controls_enabled(self, enabled: bool) -> None:
+        for control in self.numeric_controls.values():
+            control.setEnabled(enabled)
+        for selector in self.choice_selectors.values():
+            selector.setEnabled(enabled)
+
+    def iter_controls(self) -> Tuple[EffectNumericControl, ...]:
+        return tuple(self.numeric_controls.values())
+
+    def _on_choice_changed(self, combo_index: int) -> None:
+        selector = self.sender()
+        if combo_index < 0 or not isinstance(selector, BottomBorderComboBox):
+            return
+        key = selector.property('filter-param')
+        if isinstance(key, str) and key:
+            self.value_commit_requested.emit(
+                self.index, 'param:' + key, selector.itemData(combo_index)
+            )

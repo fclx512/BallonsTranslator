@@ -1,9 +1,9 @@
 """Selection/global preview and undo boundaries for text effects.
 
 Port of upstream v1.5.13 ``edit_session.py`` with the fork scope trim:
-the filter / image / texture / AI-generation families are out of scope
+the image / texture / AI-generation families are out of scope
 (效果栈移植计划 §六), so only stroke / shadow / glow / gradient fill /
-hollow / overall opacity survive here.
+hollow / filter / overall opacity survive here.
 """
 
 from dataclasses import replace
@@ -13,6 +13,7 @@ from utils import config as C
 from utils.logger import logger as LOGGER
 from utils.text_effects import (
     EffectPaint,
+    FilterEffect,
     GeneratedEffectPaint,
     GlowEffect,
     GradientStop,
@@ -30,6 +31,7 @@ from utils.text_effects import (
 )
 
 from ... import shared_widget as SW
+from .filters import get_filter_registry
 from ..editing.commands import SetTextEffectStackCommand
 
 if TYPE_CHECKING:
@@ -110,7 +112,7 @@ def effect_reorder_is_aligned(
     family = (
         (TextFillEffect,)
         if isinstance(reference, TextFillEffect)
-        else (StrokeEffect, ShadowEffect, GlowEffect)
+        else (StrokeEffect, ShadowEffect, GlowEffect, FilterEffect)
     )
     if not isinstance(reference, family):
         return False
@@ -150,6 +152,7 @@ class TextEffectEditSession:
             )
             controls.preview_canceled.connect(self.cancel_preview)
             controls.add_effect_requested.connect(self.add_effect)
+            controls.add_filter_requested.connect(self.add_filter)
             controls.hollow_enabled_requested.connect(
                 self.set_hollow_enabled
             )
@@ -293,6 +296,16 @@ class TextEffectEditSession:
                 parameters['paint'] = value
             else:
                 parameters[param_name] = value
+        elif isinstance(effect, FilterEffect):
+            if param_name == 'enabled':
+                parameters['enabled'] = value
+            elif param_name.startswith('param:'):
+                key = param_name[len('param:'):]
+                params = dict(effect.params_dict())
+                params[key] = value
+                parameters['params'] = tuple(params.items())
+            else:
+                raise ValueError('unknown Filter field')
         else:
             raise ValueError('selected text effect type is unsupported')
         effects = list(state.effects)
@@ -310,6 +323,8 @@ class TextEffectEditSession:
         if index < 0 or index >= len(state.effects):
             raise IndexError('text effect index is no longer current')
         effect = state.effects[index]
+        if isinstance(effect, FilterEffect) and param_name.startswith('param:'):
+            return effect.params_dict().get(param_name[len('param:'):])
         return getattr(effect, param_name)
 
     def _set_global_effects(self, state: TextEffectStack) -> None:
@@ -646,8 +661,9 @@ class TextEffectEditSession:
     def add_effect(self, effect_type: str) -> bool:
         self._prepare_structure_change()
         before = self._current_states()
+        # 'stroke' 不再可加（2026-09-08 描边卡退役）：描边只由主面板
+        # 轮廓行经 legacy 视图写入，避免同一实现两个编辑入口。
         constructors = {
-            'stroke': StrokeEffect,
             'shadow': ShadowEffect,
             'glow': GlowEffect,
             'gradient': lambda: TextFillEffect(
@@ -659,6 +675,21 @@ class TextEffectEditSession:
             self._sync_effect_ui()
             return False
         effect = constructor()
+        return self._insert_effect(before, effect)
+
+    def add_filter(self, filter_id: str) -> bool:
+        """Append one repeatable filter with its metadata defaults."""
+        self._prepare_structure_change()
+        before = self._current_states()
+        spec = get_filter_registry().get_spec(filter_id)
+        if spec is None:
+            self._sync_effect_ui()
+            return False
+        effect = FilterEffect(
+            spec.filter_id,
+            schema_version=spec.schema_version,
+            params=spec.default_params(),
+        )
         return self._insert_effect(before, effect)
 
     def set_hollow_enabled(self, enabled: bool) -> bool:
@@ -732,7 +763,7 @@ class TextEffectEditSession:
         movable_types = (
             (TextFillEffect,)
             if isinstance(effect, TextFillEffect)
-            else (StrokeEffect, ShadowEffect, GlowEffect)
+            else (StrokeEffect, ShadowEffect, GlowEffect, FilterEffect)
         )
         if not isinstance(effect, movable_types):
             self._sync_effect_ui()
