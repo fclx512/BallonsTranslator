@@ -219,10 +219,6 @@
                 "docs/daily_log.md",
                 "docs/技术实现/效果栈移植与窄栏图标重绘_计划.md"
             ]
-        },
-        "icons/text-effect-stroke.svg": {
-            "note": "独立描边效果卡退役（2026-09-08 用户拍板：与主面板轮廓行实现重复，栈内 StrokeEffect 仍由轮廓行经 legacy 视图读写）。随 StrokeEffectCard/add 菜单项一并删除。",
-            "allowed_mentions": []
         }
     },
     "suspended": {

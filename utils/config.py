@@ -441,9 +441,6 @@ class ProgramConfig(Config):
     letter_spacing_presets: List[float] = field(
         default_factory=lambda: [0.0, 0.5, 1.0, 1.5, 2.0]
     )
-    stroke_width_presets: List[float] = field(
-        default_factory=lambda: [0.1, 0.15, 0.2, 1.0]
-    )
     opacity_presets: List[float] = field(
         default_factory=lambda: [1.0, 0.8, 0.6, 0.4, 0.2]
     )

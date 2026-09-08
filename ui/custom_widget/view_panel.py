@@ -51,7 +51,14 @@ class ExpandLabel(Widget):
     clicked = Signal()
 
     def __init__(
-        self, text=None, parent=None, size_type="normal", capsule=False, *args, **kwargs
+        self,
+        text=None,
+        parent=None,
+        size_type="normal",
+        capsule=False,
+        hide_button=True,
+        *args,
+        **kwargs,
     ):
         super().__init__(parent=parent, *args, **kwargs)
         self._capsule = capsule
@@ -88,8 +95,9 @@ class ExpandLabel(Widget):
                 raise
 
             self.textlabel.setFont(font)
-            self.hidelabel = HidePanelButton(self)
-            self.hidelabel.setVisible(False)
+            self.hidelabel = HidePanelButton(self) if hide_button else None
+            if self.hidelabel is not None:
+                self.hidelabel.setVisible(False)
 
             layout = QHBoxLayout(self)
             layout.addWidget(self.arrowlabel)
@@ -97,7 +105,8 @@ class ExpandLabel(Widget):
             layout.setContentsMargins(0, 0, 0, 0)
             layout.setSpacing(1)
             layout.addStretch(-1)
-            layout.addWidget(self.hidelabel)
+            if self.hidelabel is not None:
+                layout.addWidget(self.hidelabel)
 
         if text is not None:
             self.textlabel.setText(text)
@@ -143,6 +152,7 @@ class PanelArea(QScrollArea):
         config_expand_name: str,
         action_name: str = None,
         title_capsule=False,
+        hide_button=True,
     ):
         super().__init__()
         self.scrollContent = PanelAreaContent()
@@ -157,7 +167,12 @@ class PanelArea(QScrollArea):
         ScrollBar(Qt.Orientation.Horizontal, self)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
-        self.view_widget = ViewWidget(self, panel_name, title_capsule=title_capsule)
+        self.view_widget = ViewWidget(
+            self,
+            panel_name,
+            title_capsule=title_capsule,
+            hide_button=hide_button,
+        )
         # 卡片堆栈面板的高度同步重入护栏（_sync_scroll_content_height）
         self._syncing_content_height = False
         self.view_hide_btn_clicked = self.view_widget.view_hide_btn_clicked
@@ -280,13 +295,18 @@ class ViewWidget(Widget):
         parent=None,
         title_size_type="normal",
         title_capsule=False,
+        hide_button=True,
         *args,
         **kwargs,
     ):
         super().__init__(parent=parent, *args, **kwargs)
 
         self.title_label = ExpandLabel(
-            panel_name, self, size_type=title_size_type, capsule=title_capsule
+            panel_name,
+            self,
+            size_type=title_size_type,
+            capsule=title_capsule,
+            hide_button=hide_button,
         )
         # In capsule mode there is no hidelabel
         if self.title_label.hidelabel is not None:

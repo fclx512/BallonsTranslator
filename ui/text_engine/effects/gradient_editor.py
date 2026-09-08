@@ -3,7 +3,8 @@
 Port of upstream v1.5.13 ``gradient_editor.py`` with the fork's balanced
 trim (user decision 2026-09-03): keep the stop bar (drag / click-empty to
 add / Esc cancels), the clock dial, the stop color swatch and the
-angle+scale row; drop the per-stop opacity/position spin boxes.
+angle+scale row; drop the per-stop opacity/position spin boxes —— 停点
+不透明度改由取色器的 alpha 通道承担（``alpha=True``），色块铺棋盘底。
 """
 
 import math
@@ -41,7 +42,7 @@ from qtpy.QtWidgets import (
 from utils.text_effects import GradientStop, LinearGradientPaint
 
 from ui.custom_widget import NoArrowsDoubleSpinBox
-from ui.custom_widget.color_picker import ColorPickerDialog
+from ui.custom_widget.color_picker import ColorPickerDialog, _paint_checkerboard
 from ui.misc import themed_icon_path
 from .paint import paint_effect_paint_preview
 
@@ -409,14 +410,19 @@ class GradientStopColorButton(QToolButton):
         self.setObjectName('GradientStopColorPicker')
         self.setFixedSize(24, 24)
 
-    def set_color(self, color: Tuple[int, int, int]) -> None:
+    def set_color(
+        self, color: Tuple[int, int, int], opacity: float = 1.0
+    ) -> None:
         self._color = QColor(*color)
+        self._color.setAlphaF(max(0.0, min(1.0, float(opacity))))
         self.update()
 
     def paintEvent(self, event: QPaintEvent) -> None:
         super().paintEvent(event)
         painter = QPainter(self)
-        painter.fillRect(self.contentsRect().adjusted(3, 3, -3, -3), self._color)
+        rect = QRectF(self.contentsRect().adjusted(3, 3, -3, -3))
+        _paint_checkerboard(painter, rect, cell=5)
+        painter.fillRect(rect, self._color)
 
 
 class GradientAngleDial(QWidget):
@@ -771,7 +777,7 @@ class InlineLinearGradientEditor(QWidget):
 
     def _sync_selected_stop(self, _index: int) -> None:
         stop = self._selected_stop()
-        self.stop_color_picker.set_color(stop.color)
+        self.stop_color_picker.set_color(stop.color, stop.opacity)
         self.add_stop_button.setEnabled(
             self.stop_bar.isEnabled() and len(self._paint.stops) < 32
         )
@@ -872,11 +878,13 @@ class InlineLinearGradientEditor(QWidget):
     def _choose_stop_color(self) -> None:
         # fork 自研取色器（PS 式 + 屏幕吸色管）取代 win 原生 QColorDialog
         # （2026-09-08 实机验收反馈）；colorChanging 维持原来的
-        # currentColorChanged 实时预览语义。
+        # currentColorChanged 实时预览语义。停点不透明度没有独立数值框
+        # （fork 精简），改由取色器的 alpha 通道编辑。
         self._begin_edit()
-        dialog = ColorPickerDialog(
-            QColor(*self._selected_stop().color), self.window()
-        )
+        stop = self._selected_stop()
+        seed = QColor(*stop.color)
+        seed.setAlphaF(stop.opacity)
+        dialog = ColorPickerDialog(seed, self.window(), alpha=True)
         dialog.colorChanging.connect(self._on_stop_color_preview)
         self.color_dialog_active_changed.emit(True)
         try:
@@ -889,17 +897,25 @@ class InlineLinearGradientEditor(QWidget):
         else:
             self._on_stop_color_rejected()
 
+    def _replaced_selected_stop(
+        self, stop: GradientStop
+    ) -> Tuple[GradientStop, ...]:
+        stops = list(self._paint.stops)
+        stops[self.stop_bar.selected_index] = stop
+        return tuple(stops)
+
     def _on_stop_color_preview(self, color: QColor) -> None:
         if not color.isValid():
             return
         stop = replace(
             self._selected_stop(),
             color=(color.red(), color.green(), color.blue()),
+            opacity=color.alphaF(),
         )
         self._publish_preview(replace(
             self._paint, stops=self._replaced_selected_stop(stop)
         ))
-        self.stop_color_picker.set_color(stop.color)
+        self.stop_color_picker.set_color(stop.color, stop.opacity)
 
     def _on_stop_color_accepted(self) -> None:
         self._commit_current()

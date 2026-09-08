@@ -12,6 +12,11 @@ from .raster_assets import RasterAssetRef, coerce_raster_asset_ref
 SHADOW_DISTANCE_LIMIT = 10.0
 SHADOW_BLUR_LIMIT = 10.0
 SHADOW_SPREAD_LIMIT = 10.0
+#: 无单位效果参数（描边宽度、阴影距离/模糊/扩散、发光大小/扩散）的取值上限。
+#: 这些量是字形尺寸的倍数，常用段都在 1 以内；压到 1 既够用，又避免大半径
+#: 光栅化拖慢渲染（2026-09-08 用户拍板）。注意不动上面的校验上限——旧工程
+#: 可能存有更大值，校验放行才不会在加载时被当作非法效果丢弃。
+EFFECT_MAGNITUDE_LIMIT = 1.0
 TEXT_EFFECT_BLEND_MODES = (
     'normal',
     'darken', 'multiply', 'color_burn', 'linear_burn', 'darker_color',

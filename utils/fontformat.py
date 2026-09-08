@@ -1281,6 +1281,16 @@ class FontFormat(Config):
                 )
                 return
             if name == "stroke_width":
+                if (
+                    isinstance(value, (int, float))
+                    and not isinstance(value, bool)
+                    and value <= 0.0
+                    and primary_stroke(stack) is None
+                ):
+                    # 宽度归零只是清掉宽度，不该凭空建卡；描边卡的增删
+                    # 只走效果面板（2026-09-08 实机：应用格式后每块都多出
+                    # 一张 0 宽描边卡）。
+                    return
                 object.__setattr__(
                     self,
                     "text_effects",
@@ -1290,14 +1300,16 @@ class FontFormat(Config):
             if name == "srgb":
                 if isinstance(value, np.ndarray):
                     value = value.tolist()
-                parameters = {"paint": SolidPaint(value)}
+                paint = SolidPaint(value)
                 if primary_stroke(stack) is None:
-                    # 检出/覆盖可能先写入颜色再写宽度；无描边时保持 0 宽。
-                    parameters["width"] = 0.0
+                    # 自动跟随改字色会写 srgb；无描边时该颜色无处可放，
+                    # 也不该因此新建描边卡（渲染侧 effective_stroke_color
+                    # 按前景色反色派生，不依赖这里存档）。
+                    return
                 object.__setattr__(
                     self,
                     "text_effects",
-                    with_primary_stroke(stack, **parameters),
+                    with_primary_stroke(stack, paint=paint),
                 )
                 return
             if name == "shadow_radius":

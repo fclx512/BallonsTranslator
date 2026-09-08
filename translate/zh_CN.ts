@@ -762,11 +762,6 @@
             <translation>字间距：</translation>
         </message>
         <message>
-            <location filename="..\ui\configpanel.py" line="1681" />
-            <source>Stroke Width:</source>
-            <translation>描边宽度：</translation>
-        </message>
-        <message>
             <location filename="..\ui\configpanel.py" line="1683" />
             <source>Opacity:</source>
             <translation>不透明度：</translation>
@@ -1169,20 +1164,20 @@
             <translation>标点位置</translation>
         </message>
         <message>
-            <source>&lt;p&gt;When a text block's stroke color is not manually set, automatically use the &lt;b&gt;inverse&lt;/b&gt; of its font color (black text gets white stroke, white text gets black stroke). Disable to keep each block's stored stroke color and stop it from following the font color.&lt;/p&gt;</source>
-            <translation>&lt;p&gt;当文字块的描边色未被手动指定时，自动取其字体颜色的反色（黑字白边、白字黑边）。关闭后各块按存档描边色渲染，不再随字体颜色联动。&lt;/p&gt;</translation>
-        </message>
-        <message>
-            <source>Stroke color follows text color</source>
-            <translation>描边色跟随文字颜色</translation>
-        </message>
-        <message>
             <source>&lt;p&gt;Maximum number of undo steps kept per page. &lt;b&gt;0&lt;/b&gt; means unlimited. Applies to both the text and drawing histories; the oldest steps are dropped first once the limit is reached. Changing the limit applies right away if the history is empty, otherwise after the next page switch.&lt;/p&gt;</source>
             <translation>&lt;p&gt;每页保留的最大撤销步数，&lt;b&gt;0&lt;/b&gt; 表示无限。对文本与绘制两个撤销栈同时生效；达到上限后优先丢弃最旧的步骤。历史为空时修改立即生效，否则在下一次切页清空历史后生效。&lt;/p&gt;</translation>
         </message>
         <message>
             <source>Undo Steps Limit</source>
             <translation>撤销步数上限</translation>
+        </message>
+        <message>
+            <source>&lt;p&gt;When you add a stroke to a text block, its color starts as the &lt;b&gt;inverse&lt;/b&gt; of the block's font color (black text gets a white stroke, white text gets a black stroke). After that the stroke color is a manual value and no longer follows later font-color changes. Disable to start new strokes with the default black.&lt;/p&gt;</source>
+            <translation>&lt;p&gt;给文字块添加描边时，描边色初始取自该块文字色的&lt;b&gt;反色&lt;/b&gt;（黑字白边、白字黑边）。之后描边色即为手动值，不再随文字颜色变化。关闭后新添加的描边一律用默认黑色。&lt;/p&gt;</translation>
+        </message>
+        <message>
+            <source>Stroke color follows text color on creation</source>
+            <translation>描边色在添加时取自文字反色</translation>
         </message>
     </context>
     <context>
@@ -7177,6 +7172,14 @@ This maps automatically to each provider's native parameter
             <source>Solid</source>
             <translation>纯色</translation>
         </message>
+        <message>
+            <source>Advanced</source>
+            <translation>高级</translation>
+        </message>
+        <message>
+            <source>Stroke</source>
+            <translation>描边</translation>
+        </message>
     </context>
     <context>
         <name>TextFillEffectCard</name>
@@ -7191,6 +7194,53 @@ This maps automatically to each provider's native parameter
         <message>
             <source>Opacity</source>
             <translation>不透明度</translation>
+        </message>
+    </context>
+    <context>
+        <name>StrokeEffectCard</name>
+        <message>
+            <source>Center</source>
+            <translation>居中</translation>
+        </message>
+        <message>
+            <source>Choose Stroke Color</source>
+            <translation>选择描边颜色</translation>
+        </message>
+        <message>
+            <source>Edit Stroke Gradient</source>
+            <translation>编辑描边渐变</translation>
+        </message>
+        <message>
+            <source>Inside</source>
+            <translation>内部</translation>
+        </message>
+        <message>
+            <source>Opacity</source>
+            <translation>不透明度</translation>
+        </message>
+        <message>
+            <source>Outside</source>
+            <translation>外部</translation>
+        </message>
+        <message>
+            <source>Stroke</source>
+            <translation>描边</translation>
+        </message>
+        <message>
+            <source>Stroke Blend</source>
+            <translation>描边混合</translation>
+        </message>
+        <message>
+            <source>Stroke Fill</source>
+            <translation>描边填充</translation>
+        </message>
+        <message>
+            <source>Stroke Position</source>
+            <translation>描边位置</translation>
+        </message>
+        <message>
+            <source>Width</source>
+            <translation>宽度</translation>
         </message>
     </context>
 </TS>

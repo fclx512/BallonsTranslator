@@ -107,6 +107,9 @@ class BottomBorderComboBox(WidePopupComboMixin, QComboBox):
         self._text_alignment = text_alignment
         self._width_sample_text: Optional[str] = None
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        # 本控件自绘 chevron（paintEvent），须让 QSS 关掉原生 ::down-arrow，
+        # 否则两个箭头叠在一起（fork QSS 的 [bottomBorderSelector] 规则）。
+        self.setProperty('bottomBorderSelector', True)
 
     def setWidthSampleText(self, text: str) -> None:
         """Prefer room for ``text`` while retaining normal shrink behavior."""

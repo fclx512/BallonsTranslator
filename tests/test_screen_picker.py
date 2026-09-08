@@ -172,6 +172,18 @@ class TestScreenPicker(unittest.TestCase):
         dlg._copy_color(1)
         self.assertEqual(QApplication.clipboard().text(), "rgb(1, 2, 3)")
 
+    def test_dialog_alpha_mode_round_trips_alpha(self):
+        dlg = ColorPickerDialog(QColor(12, 34, 56, 128), alpha=True)
+        self.assertAlmostEqual(dlg.get_color().alphaF(), 128 / 255, places=2)
+        dlg.a_spin.setValue(25)
+        self.assertAlmostEqual(dlg.get_color().alphaF(), 0.25, places=2)
+        dlg.alpha_slider.set_alpha(0.75)
+        dlg._on_alpha_slider_changed()
+        self.assertAlmostEqual(dlg.get_color().alphaF(), 0.75, places=2)
+        # 8 位 hex（AARRGGBB）也带 alpha
+        dlg.hex_edit.setText("80FF0000")
+        self.assertAlmostEqual(dlg.get_color().alphaF(), 128 / 255, places=2)
+
     def test_dialog_hex_field_selects_all_on_focus(self):
         dlg = ColorPickerDialog(QColor(12, 34, 56))
         dlg.show()

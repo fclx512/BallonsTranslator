@@ -66,7 +66,7 @@ modules/
 |-----------|----------|
 | `ConfigSubBlock` 禁用自动变灰 | `changeEvent` 自动处理禁用态 label 颜色 |
 | "—" 占位符模式 | 禁用数值字段时以 "—" 替代，`blockSignals` 防误触 |
-| `NoArrowsSpinBox` 族 | 无箭头、主题感知的数字/文本/下拉/滚动条控件族；`NoArrowsSpinBox`/`NoArrowsDoubleSpinBox`/`SizeComboBox` 支持 Blender 式横向拖拽调值（悬停 ↔、Shift 精调、单击/点选进编辑），拖拽中静默改显示、松手才经 `drag_finished` 提交一次。**数值输入默认用本族**，禁止裸 `QSpinBox`/`QDoubleSpinBox`（同「输入类必须用封装类」规则）。特例：变换/效果卡的 committed 数值网格（`ui/text_engine/transforms/panel.py::CommittedTransformControl` / `ui/text_engine/effects/cards.py::EffectNumericControl`）走「label 拖拽 + 画布实时预览 + 松手提交」的独立状态机（拖拽中途即更新模型、预览不进撤销栈），比纯箱体拖拽丰富、保留实时预览故不改箱体；若改纯箱体拖拽会丢实时预览，需单独批次做「label 拖拽 + 实时预览 + 箱体直拖」混合 |
+| `NoArrowsSpinBox` 族 | 无箭头、主题感知的数字/文本/下拉/滚动条控件族；`NoArrowsSpinBox`/`NoArrowsDoubleSpinBox`/`SizeComboBox` 支持 Blender 式横向拖拽调值（悬停 ↔、Shift 精调、单击/点选进编辑），拖拽中静默改显示、松手才经 `drag_finished` 提交一次。**数值输入默认用本族**，禁止裸 `QSpinBox`/`QDoubleSpinBox`（同「输入类必须用封装类」规则）。特例：变换面板的 committed 数值网格（`ui/text_engine/transforms/panel.py::CommittedTransformControl`）走「label 拖拽 + 画布实时预览 + 松手提交」的独立状态机（拖拽中途即更新模型、预览不进撤销栈）；效果卡的同类网格（`ui/text_engine/effects/cards.py::EffectNumericControl`）已改为「箱体直拖 + 实时预览 + 松手提交」（2026-09-08），label 退为纯描述文本 |
 | `ColorSwatchBtn` | 色块按钮，`setColor()`/`color()` + `colorChanged` 信号 |
 | `pick_screen_color()` | 屏幕吸色管：全屏覆盖 + 8x 放大镜，左键取色、右键/Esc 取消（冻结帧采样，事件驱动不卡 UI） |
 | `ConfigScrollBar` | 全局统一的 8px 圆角滚动条（含悬停动画） |

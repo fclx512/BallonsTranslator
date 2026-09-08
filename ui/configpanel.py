@@ -1950,7 +1950,7 @@ class ConfigPanel(Widget):
         )
 
         self.stroke_auto_follow_checker = ConfigCheckBox(
-            self.tr("Stroke color follows text color")
+            self.tr("Stroke color follows text color on creation")
         )
         self.stroke_auto_follow_checker.stateChanged.connect(
             self.on_stroke_auto_follow_changed
@@ -1959,7 +1959,7 @@ class ConfigPanel(Widget):
             ConfigFormRow(
                 "",
                 self.stroke_auto_follow_checker,
-                note=self.tr("<p>When a text block's stroke color is not manually set, automatically use the <b>inverse</b> of its font color (black text gets white stroke, white text gets black stroke). Disable to keep each block's stored stroke color and stop it from following the font color.</p>"),
+                note=self.tr("<p>When you add a stroke to a text block, its color starts as the <b>inverse</b> of the block's font color (black text gets a white stroke, white text gets a black stroke). After that the stroke color is a manual value and no longer follows later font-color changes. Disable to start new strokes with the default black.</p>"),
             )
         )
 
@@ -1993,9 +1993,6 @@ class ConfigPanel(Widget):
         )
         _make_preset_row(
             self.tr("Letter Spacing:"), "letter_spacing_presets", ts_layout
-        )
-        _make_preset_row(
-            self.tr("Stroke Width:"), "stroke_width_presets", ts_layout
         )
         _make_preset_row(self.tr("Opacity:"), "opacity_presets", ts_layout)
 

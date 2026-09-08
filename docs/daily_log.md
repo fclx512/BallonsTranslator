@@ -20,6 +20,21 @@
 
 **涉及文件：** `ui/text_engine/effects/cards.py`、`ui/text_engine/effects/panel.py`、`ui/text_engine/effects/edit_session.py`、`ui/text_engine/effects/gradient_editor.py`、`ui/text_panel.py`、`ui/text_engine/effects/renderer.py`（上午批）、`icons/text-effect-stroke.svg`（删）、`scripts/audit_registry.json`、`translate/zh_CN.ts`、`translate/zh_CN.qm`、`tests/test_text_effects_filter.py`、`docs/技术实现/效果栈移植与窄栏图标重绘_计划.md`
 
+### 效果栈二批：描边只走栈 + 全卡渐进披露 + 三轮实机反馈修复
+
+**问题/需求：** 用户先提「常驻轮廓行管外形 + 效果卡管顺序」的双视图方案，调研后改为上游单卡模式（描边只走栈，顺序与位置/混合等高级参数都要卡片承载）。视觉减法要求做渐进披露：高频参数常显、低频项收进默认收起的「高级」子层、展开状态不记忆。随后三轮实机验收反馈全部处理完毕并验收通过。
+
+**改动要点：**
+
+- **描边只走栈**：删右栏常驻描边行（`ui/text_panel.py::FontFormatPanel` 宽度框/取色器，行距类型下拉独立成行）与 `stroke_width_presets` 预设配置；`StrokeEffectCard` 从 git 取回并接回 Add 菜单/分发/构造器，描边取色即置 `stroke_color_custom`（`edit_session.py::TextEffectEditSession`），避免被自动反色冲掉。
+- **渐进披露机制**：`cards.py::_AdvancedDisclosure`（20px 折叠行，chevron + 「高级」+ 非默认值圆点）；mixin `_build_advanced_section` 把低频参数网格包进默认收起容器，卡片 `geometry_changed` 接 `TextEffectPanel._sync_content_height` 重算量程。分层：描边=宽度/位置/颜色常显；阴影/发光=类型/几何/颜色常显；渐变卡=渐变条常显；滤镜卡无折叠行。
+- **第一轮修复**：渐变停点取色崩溃（移植漏 `_replaced_selected_stop`，编辑器此前永久隐藏故未暴露）；色块压住 Fill 下拉（`Ignored` 策略向布局上报零宽度，改 `Preferred`）；下拉双箭头（自绘 chevron 的控件补关原生 `::down-arrow`/`::menu-indicator`）。
+- **第二轮修复**：折叠栏隐藏按钮退役（`view_panel.py::ExpandLabel` 加 `hide_button`，变换面板同款老 hack 一并删）；旧字段活体写入不再凭空建 0 宽描边卡（`utils/fontformat.py::FontFormat` 的 `srgb`/`stroke_width=0` 分支）；Add 菜单白名单补 `'stroke'`；效果卡数值框改 Blender 式箱体拖拽（`cards.py::EffectNumericControl` 自装事件过滤器复用 DRAG_PREVIEW 状态机，实时预览与单次提交不变；`transforms/panel.py::TransformDragLabel` 加 `drag_enabled` 让标签退为纯描述）；无单位效果参数上限统一 `utils/text_effects.py::EFFECT_MAGNITUDE_LIMIT=1.0`（校验上限仍 10 以兼容旧工程，滤镜补 ` px` 后缀并用测试钉住不变量）。
+- **第三轮修复**：取色器加 `alpha=True` 模式（纵向 alpha 滑条 + A 数值 + 棋盘底），渐变停点不透明度改由取色器 alpha 承担（`gradient_editor.py` 停点色块铺棋盘底）；描边自动反色由「改字色实时联动」改为「添加描边时取一次反色后保持手动」（`TextBlkItem.setFontColor` 的实时分支移除，设置面板文案同步）。
+- **验证**：`tests/test_text_effects_cards.py`（15 条）、`tests/test_text_effects_stroke_follow.py`（4 条）、`tests/test_screen_picker.py` alpha 用例；`verify.py --full` 全绿（649 passed / 1 skipped）。
+
+**涉及文件：** `ui/text_engine/effects/cards.py`、`ui/text_engine/effects/panel.py`、`ui/text_engine/effects/edit_session.py`、`ui/text_engine/effects/gradient_editor.py`、`ui/text_engine/effects/filters/filter_grain.py`、`ui/text_engine/transforms/panel.py`、`ui/custom_widget/view_panel.py`、`ui/custom_widget/combobox.py`、`ui/custom_widget/color_picker.py`、`ui/text_engine/item.py`、`ui/text_panel.py`、`ui/configpanel.py`、`utils/fontformat.py`、`utils/text_effects.py`、`utils/config.py`、`config/stylesheet.css`、`icons/text-effect-stroke.svg`、`scripts/audit_registry.json`、`translate/zh_CN.ts`、`translate/zh_CN.qm`、`tests/test_text_effects_cards.py`、`tests/test_text_effects_stroke_follow.py`、`tests/test_screen_picker.py`、`AGENTS.md`、`docs/技术实现/效果卡渐进披露_验收清单.md`、`docs/技术实现/效果栈移植与窄栏图标重绘_计划.md`
+
 ---
 
 ## 2026-09-06

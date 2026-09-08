@@ -127,6 +127,19 @@ QComboBox::down-arrow {
     padding-right: 13px;
 }
 
+/* 自绘 chevron 的下拉（ui/custom_widget/combobox.py::BottomBorderComboBox）
+   必须关掉原生箭头，否则两个箭头叠在一起 */
+QComboBox[bottomBorderSelector="true"]::drop-down {
+    width: 16px;
+    border: none;
+}
+
+QComboBox[bottomBorderSelector="true"]::down-arrow {
+    image: none;
+    width: 0px;
+    height: 0px;
+}
+
 /* ── QComboBox dropdown popup list ───────────────────────── */
 QComboBox QAbstractItemView {
     background-color: @widgetBackgroundColor;
@@ -1970,6 +1983,15 @@ QLineEdit#TextEffectParamEditor:disabled {
     border: 1px solid @disabledForegroundColor;
     color: @disabledForegroundColor;
 }
+/* 效果卡数值框的 Blender 式箱体拖拽外观（与 NoArrowsSpinBox 同套变量） */
+QLineEdit#TextEffectParamEditor[dragState="hover"] {
+    background: @dragHoverBgColor;
+    border: 1px solid @accentPrimary;
+}
+QLineEdit#TextEffectParamEditor[dragState="drag"] {
+    background: @dragActiveBgColor;
+    border: 1px solid @accentPrimary;
+}
 QComboBox#TextEffectParamEditor {
     height: 22px;
     font-size: 12px;
@@ -2036,6 +2058,18 @@ QWidget#TextEffectPanelActions,
 QWidget#InlineLinearGradientEditor {
     background: transparent;
 }
+/* 卡内「高级」折叠行：与面板 Section 同套 chevron，悬停整行高亮 */
+QWidget#TextEffectAdvancedRow {
+    background: transparent;
+    border-radius: 4px;
+}
+QWidget#TextEffectAdvancedRow:hover {
+    background: @hoverBackgroundColor;
+}
+QLabel#TextEffectAdvancedDot {
+    background: @accentPrimary;
+    border-radius: 3px;
+}
 QToolButton#TextEffectBlendSelector {
     background: @inputBackgroundColor;
     color: @textColor;
@@ -2045,6 +2079,12 @@ QToolButton#TextEffectBlendSelector {
 }
 QToolButton#TextEffectBlendSelector:hover {
     background: @hoverBackgroundColor;
+}
+/* 同 BottomBorderComboBox：箭头由 paintEvent 自绘，关掉原生菜单指示器 */
+QToolButton#TextEffectBlendSelector::menu-indicator {
+    image: none;
+    width: 0px;
+    height: 0px;
 }
 QToolButton#TextEffectPaintButton {
     background: @inputBackgroundColor;

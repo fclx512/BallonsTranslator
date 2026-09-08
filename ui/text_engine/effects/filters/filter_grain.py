@@ -29,7 +29,7 @@ FILTER_META = {
         {
             'key': 'size', 'label': 'Size', 'kind': 'float',
             'default': 2.0, 'minimum': 0.25, 'maximum': 8.0,
-            'step': 0.1, 'decimals': 1,
+            'step': 0.1, 'decimals': 1, 'suffix': ' px',
         },
         {
             'key': 'seed', 'label': 'Seed', 'kind': 'int',

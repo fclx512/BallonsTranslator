@@ -535,7 +535,47 @@ class TextEffectEditSession:
             return False
         self.preview_before = None
         self.preview_key = None
-        return self._commit_complete_states(before, after)
+        committed = self._commit_complete_states(before, after)
+        if committed:
+            self._mark_stroke_color_manual(index, param_name, target_indices)
+        return committed
+
+    def _mark_stroke_color_manual(
+        self,
+        index: int,
+        param_name: str,
+        target_indices: Sequence[Optional[int]],
+    ) -> None:
+        """描边取色即视为手动覆盖，停掉自动跟随（2026-09-08 用户拍板）。
+
+        常驻描边行退役后卡片是唯一的描边取色入口，它直接提交 ``paint``，
+        不经过 ``TextBlkItem.setStrokeColor`` 那条置位 ``stroke_color_custom``
+        的路径；缺这一步时下一次改字色会被 ``TextBlkItem.setFontColor``
+        的自动反色分支冲掉刚挑的颜色。该标记与旧常驻行一致，不进撤销快照。
+        """
+        if param_name not in {'paint', 'paint_type'}:
+            return
+        states = self._current_states()
+        for position, target_index in enumerate(target_indices):
+            if (
+                target_index is None
+                or position >= len(states)
+                or target_index >= len(states[position].effects)
+            ):
+                continue
+            if not isinstance(
+                states[position].effects[target_index], StrokeEffect
+            ):
+                continue
+            if self.items:
+                item = self.items[position]
+                item.fontformat.stroke_color_custom = True
+                item.blk.fontformat.stroke_color_custom = True
+            else:
+                self.host.global_format.stroke_color_custom = True
+                active = C.active_format
+                if active is self.host.global_format:
+                    active.stroke_color_custom = True
 
     def commit_parameter_delta(
         self, index: int, param_name: str, canonical_delta: float
@@ -658,12 +698,40 @@ class TextEffectEditSession:
             self.controls.reveal_effect_card(primary_insert_index)
         return changed
 
+    def _stroke_seed_paint(self) -> SolidPaint:
+        """添加描边时按当前文字色取一次反色作为初始描边色。
+
+        2026-09-08 用户拍板：自动跟随由「改字色实时反色」改为「添加描边时
+        检测一次」，之后描边色纯手动（不再被 ``setFontColor`` 冲掉）。全局
+        开关关闭时不反色，用默认黑。
+        """
+        if not getattr(C.pcfg, 'stroke_auto_follow', True):
+            return SolidPaint()
+        if self.items:
+            foreground = self.items[0].fontformat.foreground_color()
+        else:
+            foreground = self.host.global_format.foreground_color()
+        return SolidPaint(
+            [
+                max(0, min(255, 255 - int(round(channel))))
+                for channel in foreground
+            ]
+        )
+
+    def _mark_stroke_owners_manual(self) -> None:
+        """新建描边后把描边色标成手动，避免应用格式时被反色重派生。"""
+        if self.items:
+            for item in self.items:
+                item.fontformat.stroke_color_custom = True
+                item.blk.fontformat.stroke_color_custom = True
+        else:
+            self.host.global_format.stroke_color_custom = True
+
     def add_effect(self, effect_type: str) -> bool:
         self._prepare_structure_change()
         before = self._current_states()
-        # 'stroke' 不再可加（2026-09-08 描边卡退役）：描边只由主面板
-        # 轮廓行经 legacy 视图写入，避免同一实现两个编辑入口。
         constructors = {
+            'stroke': lambda: StrokeEffect(paint=self._stroke_seed_paint()),
             'shadow': ShadowEffect,
             'glow': GlowEffect,
             'gradient': lambda: TextFillEffect(
@@ -675,7 +743,10 @@ class TextEffectEditSession:
             self._sync_effect_ui()
             return False
         effect = constructor()
-        return self._insert_effect(before, effect)
+        inserted = self._insert_effect(before, effect)
+        if inserted and effect_type == 'stroke':
+            self._mark_stroke_owners_manual()
+        return inserted
 
     def add_filter(self, filter_id: str) -> bool:
         """Append one repeatable filter with its metadata defaults."""

@@ -651,23 +651,6 @@ class FontFormatPanel(Widget):
             )
         )
 
-        self.strokeWidthBox = SizeComboBox([0, 1], "stroke_width", self)
-        self.strokeWidthBox.addItems([str(v) for v in C.pcfg.stroke_width_presets])
-        self.strokeWidthBox.setToolTip(self.tr("Change stroke width"))
-        self.strokeWidthBox.param_changed.connect(self.on_param_changed)
-
-        self.strokeColorPicker = ColorPickerLabel(self, param_name="srgb")
-        self.strokeColorPicker.setToolTip(self.tr("Change stroke color"))
-        self.strokeColorPicker.changingColor.connect(self.changingColor)
-        self.strokeColorPicker.colorChanged.connect(self.onColorLabelChanged)
-        self.strokeColorPicker.apply_color.connect(self.on_apply_color)
-
-        stroke_hlayout = QHBoxLayout()
-        stroke_hlayout.addWidget(SmallParamLabel(self.tr("Stroke")))
-        stroke_hlayout.addWidget(self.strokeWidthBox)
-        stroke_hlayout.addWidget(self.strokeColorPicker)
-        stroke_hlayout.setSpacing(shared.WIDGET_SPACING_CLOSE)
-
         self.letterSpacingBox = SizeComboBox([0, 10], "letter_spacing", self)
         self.letterSpacingBox.addItems([str(v) for v in C.pcfg.letter_spacing_presets])
         self.letterSpacingBox.setToolTip(self.tr("Change letter spacing"))
@@ -731,23 +714,15 @@ class FontFormatPanel(Widget):
         )
         self.text_transform_editor.global_format = self.global_format
 
-        # Remove View menu entries + hide buttons for these built-in panels
-        # (keep the panels functional; prevent accidental hide via View menu)
+        # Remove View menu entries for these built-in panels (keep the panels
+        # functional; prevent accidental hide via View menu). 折叠栏的隐藏
+        # 面板按钮由各面板经 hide_button=False 直接不建（原先靠零尺寸藏）。
         for cfg in [
             "show_text_style_preset",
             "text_transform_panel",
             "show_text_effect_panel",
         ]:
             shared.config_name_to_view_widget.pop(cfg, None)
-        for p in [
-            self.textstyle_panel,
-            self.texttransform_panel,
-        ]:
-            hl = p.view_widget.title_label.hidelabel
-            if hl is not None:
-                hl.setVisible(False)
-                hl.setMaximumSize(0, 0)
-                hl.setMinimumSize(0, 0)
 
         self.familybox.currentTextChanged.connect(self.on_familybox_changed)
 
@@ -815,23 +790,21 @@ class FontFormatPanel(Widget):
         size_and_metrics.setContentsMargins(2, 0, 2, 0)
         size_and_metrics.setSpacing(shared.WIDGET_SPACING_CLOSE)
 
-        # Row 4：描边 + 行距类型同行（2026-09-08 用户拍板：行距类型下拉
-        # 并入描边行右端省一行；此前 2026-09-07 曾自效果浮层移回独立行）。
-        # 描边编辑始终走本行（经 legacy 视图写效果栈），无独立描边卡。
-        stroke_row = QHBoxLayout()
-        stroke_row.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        stroke_row.addLayout(stroke_hlayout)
-        stroke_row.addWidget(SmallParamLabel(self.tr("Line Spacing Type")))
-        stroke_row.addWidget(self.lineSpacingTypeBox)
-        stroke_row.addStretch()
-        stroke_row.setContentsMargins(2, 0, 2, 0)
-        stroke_row.setSpacing(shared.WIDGET_SPACING_CLOSE)
+        # Row 4：行距类型（描边随 2026-09-08 用户拍板退役常驻行、只走效果
+        # 栈卡片，本行只剩行距类型下拉）。
+        linesptype_row = QHBoxLayout()
+        linesptype_row.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        linesptype_row.addWidget(SmallParamLabel(self.tr("Line Spacing Type")))
+        linesptype_row.addWidget(self.lineSpacingTypeBox)
+        linesptype_row.addStretch()
+        linesptype_row.setContentsMargins(2, 0, 2, 0)
+        linesptype_row.setSpacing(shared.WIDGET_SPACING_CLOSE)
 
         basics = QVBoxLayout()
         basics.addLayout(font_selector)
         basics.addLayout(format_icons)
         basics.addLayout(size_and_metrics)
-        basics.addLayout(stroke_row)
+        basics.addLayout(linesptype_row)
         # 纵向 6 / 横向 8（WIDGET_SPACING_CLOSE）：全栏统一间距档位
         basics.setSpacing(6)
         basics.setContentsMargins(2, 3, 2, 3)
@@ -943,24 +916,21 @@ class FontFormatPanel(Widget):
     def changingColor(self):
         self.focusOnColorDialog = True
 
-    def _sync_stroke_color_after_change(self, param_name: str):
-        """颜色变更后的描边色状态同步（取色/右键应用共用）。
+    def _refresh_effects_echo(self):
+        """字体色变更会经自动跟随改写描边色，效果卡色块需重新回显。
 
-        srgb：手动指定轮廓颜色 → 置「自定义」标记，此后该块完全按手动值渲染，
-        不再自动跟随文字反色（默认态无 UI，显式取色即成为自定义，无恢复场景）。
-        frgb：字体颜色变更 → 描边色自动跟随文字反色即时刷新（黑字白边/白字黑边），
-        无延迟（此前面板 swatch 需等选中态重载才更新）。
+        描边行退役后描边色只由效果卡承载（2026-09-08），而
+        ``TextBlkItem.setFontColor`` 的自动反色分支直接改栈里的 paint，
+        面板不会自己收到通知，故取色后主动重读一次卡片值。
         """
-        if param_name == "srgb":
-            C.active_format.stroke_color_custom = True
-        elif param_name == "frgb":
-            fmt = C.active_format
-            if fmt is not None and not fmt.stroke_color_custom:
-                self.strokeColorPicker.setPickerColor(
-                    fmt.effective_stroke_color(
-                        auto_follow=C.pcfg.stroke_auto_follow
-                    )
-                )
+        panel = getattr(self, "effects_panel", None)
+        editor = getattr(self, "effects_editor", None)
+        if panel is None or editor is None:
+            return
+        if editor.items:
+            panel.set_effect_items(editor.items)
+        else:
+            panel.set_active_format(self.global_format)
 
     def onColorLabelChanged(self, is_valid=True):
         self.focusOnColorDialog = False
@@ -968,11 +938,13 @@ class FontFormatPanel(Widget):
             sender: ColorPickerLabel = self.sender()
             rgb = sender.rgb()
             self.on_param_changed(sender.param_name, rgb)
-            self._sync_stroke_color_after_change(sender.param_name)
+            if sender.param_name == "frgb":
+                self._refresh_effects_echo()
 
     def on_apply_color(self, param_name, rgb):
         self.on_param_changed(param_name, rgb)
-        self._sync_stroke_color_after_change(param_name)
+        if param_name == "frgb":
+            self._refresh_effects_echo()
 
     def _line_spacing_drag_step(self):
         """行距拖拽灵敏度：Distance 类型 0.1/px（5px=0.5），否则默认 0.05。"""
@@ -1051,12 +1023,6 @@ class FontFormatPanel(Widget):
             if idx >= 0:
                 self.stylebox.setCurrentIndex(idx)
         self.colorPicker.setPickerColor(font_format.foreground_color())
-        self.strokeColorPicker.setPickerColor(
-            font_format.effective_stroke_color(
-                auto_follow=C.pcfg.stroke_auto_follow
-            )
-        )
-        self.strokeWidthBox.setValue(font_format.stroke_width)
         self.lineSpacingBox.setValue(font_format.line_spacing)
         self.letterSpacingBox.setValue(font_format.letter_spacing)
         with QSignalBlocker(self.lineSpacingTypeBox):
@@ -1068,7 +1034,6 @@ class FontFormatPanel(Widget):
         # 可编辑数值下拉的混合态：显示 "—"（value() 解析失败回退旧值，
         # 不会把占位符当数值写回）
         for box, field in (
-            (self.strokeWidthBox, "stroke_width"),
             (self.lineSpacingBox, "line_spacing"),
             (self.letterSpacingBox, "letter_spacing"),
         ):
@@ -1139,13 +1104,6 @@ class FontFormatPanel(Widget):
         self.letterSpacingBox.addItems([str(v) for v in pcfg.letter_spacing_presets])
         self.letterSpacingBox.setValue(cur)
         self.letterSpacingBox.blockSignals(False)
-
-        self.strokeWidthBox.blockSignals(True)
-        cur = self.strokeWidthBox.value()
-        self.strokeWidthBox.clear()
-        self.strokeWidthBox.addItems([str(v) for v in pcfg.stroke_width_presets])
-        self.strokeWidthBox.setValue(cur)
-        self.strokeWidthBox.blockSignals(False)
 
     def deactivate_style_label(self):
         if self.active_text_style_label() is not None:

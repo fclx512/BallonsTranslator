@@ -1990,11 +1990,9 @@ class TextBlkItem(QGraphicsTextItem):
         # 前景色入库模型 frgb（get_fontformat 回读字符前景；模型 frgb 供
         # effective_stroke_color 自动反色使用，须与实际渲染一致）
         self.fontformat.frgb = list(value)
-        # 描边自动跟随：全局开关开启且非自定义时，前景色变更→重派生反色（黑字白边/白字黑边）
-        if not self.fontformat.stroke_color_custom and pcfg.stroke_auto_follow:
-            inv = [max(0, min(255, 255 - int(round(c)))) for c in value]
-            self.stroke_qcolor = QColor(*inv)
-            self._commit_effect_fields(lambda f: setattr(f, "srgb", inv))
+        # 描边自动反色已改为「添加描边时检测一次」（见
+        # ui/text_engine/effects/edit_session.py::TextEffectEditSession._stroke_seed_paint），
+        # 此处不再随字色实时联动——已有描边的颜色保持手动值。
 
     def setStrokeColor(self, scolor, **kwargs):
         # 手动指定轮廓颜色 → 置自定义标记，完全按 scolor 渲染

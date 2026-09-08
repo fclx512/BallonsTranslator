@@ -1,4 +1,8 @@
-"""Photoshop-style color picker dialog with user-editable palette."""
+"""Photoshop-style color picker dialog with user-editable palette.
+
+Alpha 是可选项（``ColorPickerDialog(color, parent, alpha=True)``）：开启后
+顶部多一条纵向 alpha 滑条、数值列多一行 A（0-100%），色块/滑条下方铺
+棋盘底以便看出透明度；关闭时行为与旧版一致（始终不透明 RGB）。"""
 
 import json
 from pathlib import Path
@@ -99,6 +103,22 @@ class _HexEdit(QLineEdit):
     def focusInEvent(self, e):
         super().focusInEvent(e)
         self.selectAll()
+
+
+def _paint_checkerboard(painter, rect, cell: int = 6) -> None:
+    """棋盘底：透明色块的背景，让 alpha 一眼可见。"""
+    painter.save()
+    painter.setClipRect(rect)
+    painter.fillRect(rect, QColor(210, 210, 210))
+    painter.setPen(Qt.PenStyle.NoPen)
+    painter.setBrush(QColor(160, 160, 160))
+    for row, y in enumerate(range(int(rect.top()), int(rect.bottom()) + 1, cell)):
+        for col, x in enumerate(
+            range(int(rect.left()), int(rect.right()) + 1, cell)
+        ):
+            if (row + col) % 2:
+                painter.drawRect(QRectF(x, y, cell, cell))
+    painter.restore()
 
 
 class _ColorSquare(QWidget):
@@ -218,8 +238,67 @@ class _HueSlider(QWidget):
         self.changed.emit()
 
 
+class _AlphaSlider(QWidget):
+    """Vertical alpha slider: checkerboard under a transparent→opaque gradient."""
+
+    changed = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._color = QColor(255, 255, 255)
+        self._alpha = 1.0
+        self.setFixedWidth(22)
+
+    def alpha(self) -> float:
+        return self._alpha
+
+    def set_alpha(self, alpha: float):
+        alpha = max(0.0, min(1.0, alpha))
+        if alpha != self._alpha:
+            self._alpha = alpha
+            self.update()
+
+    def set_color(self, color: QColor):
+        self._color = QColor(color)
+        self._color.setAlpha(255)
+        self.update()
+
+    def paintEvent(self, e):
+        p = QPainter(self)
+        w, h = self.width(), self.height()
+        _paint_checkerboard(p, QRectF(2, 0, w - 4, h))
+        grad = QLinearGradient(0, 0, 0, h)
+        transparent = QColor(self._color)
+        transparent.setAlpha(0)
+        opaque = QColor(self._color)
+        opaque.setAlpha(255)
+        grad.setColorAt(0.0, transparent)
+        grad.setColorAt(1.0, opaque)
+        p.fillRect(2, 0, w - 4, h, grad)
+
+        ay = int((1.0 - self._alpha) * (h - 1))
+        p.setPen(QPen(Qt.GlobalColor.white, 2))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRect(0, ay - 5, w - 1, 10)
+
+    def mousePressEvent(self, e: QMouseEvent):
+        self._update_pos(e)
+
+    def mouseMoveEvent(self, e: QMouseEvent):
+        self._update_pos(e)
+
+    def _update_pos(self, e: QMouseEvent):
+        h = self.height()
+        self._alpha = (
+            max(0.0, min(1.0, 1.0 - e.position().y() / (h - 1)))
+            if h > 1 else 1.0
+        )
+        self.update()
+        self.changed.emit()
+
+
 class _SwatchLabel(QWidget):
-    """Small color swatch for preview."""
+    """Small color swatch for preview (checkerboard under transparency)."""
 
     def __init__(self, color: QColor, parent=None):
         super().__init__(parent)
@@ -233,6 +312,7 @@ class _SwatchLabel(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         rf = QRectF(self.rect()).adjusted(1, 1, -1, -1)
+        _paint_checkerboard(p, rf, cell=5)
         p.setBrush(QBrush(self._color))
         p.setPen(QPen(QColor(128, 128, 128, 100), 1))
         p.drawRoundedRect(rf, 3, 3)
@@ -325,12 +405,16 @@ class ColorPickerDialog(QDialog):
 
     colorChanging = Signal(QColor)
 
-    def __init__(self, current: QColor, parent=None):
+    def __init__(self, current: QColor, parent=None, *, alpha: bool = False):
         super().__init__(parent)
         self.setWindowTitle(self.tr("Color Picker"))
 
+        self._alpha_enabled = bool(alpha)
         self._result = QColor(current)
         self._old = QColor(current)
+        self._alpha = current.alphaF() if self._alpha_enabled else 1.0
+        if self._alpha_enabled:
+            self._old.setAlphaF(self._alpha)
 
         h, s, v, _ = current.getHsvF()
         self._hue = h if h >= 0 else 0.0
@@ -363,6 +447,13 @@ class ColorPickerDialog(QDialog):
         self.hue_slider.set_hue(self._hue)
         self.hue_slider.changed.connect(self._on_hue_changed)
         top.addWidget(self.hue_slider)
+
+        if self._alpha_enabled:
+            self.alpha_slider = _AlphaSlider(self)
+            self.alpha_slider.set_color(self._result)
+            self.alpha_slider.set_alpha(self._alpha)
+            self.alpha_slider.changed.connect(self._on_alpha_slider_changed)
+            top.addWidget(self.alpha_slider)
 
         # Numeric inputs — each row is label + spinbox, center-aligned
         def make_spin(lo, hi, w=60):
@@ -411,6 +502,11 @@ class ColorPickerDialog(QDialog):
         num_col.addLayout(lbl_row("R", self.r_spin))
         num_col.addLayout(lbl_row("G", self.g_spin))
         num_col.addLayout(lbl_row("B", self.b_spin))
+        if self._alpha_enabled:
+            self.a_spin = make_spin(0, 100)
+            self.a_spin.setSuffix("%")
+            self.a_spin.valueChanged.connect(self._on_alpha_spin)
+            num_col.addLayout(lbl_row("A", self.a_spin))
         num_col.addWidget(QLabel("─" * 4), alignment=Qt.AlignmentFlag.AlignCenter)
 
         hex_row = QHBoxLayout()
@@ -521,30 +617,40 @@ class ColorPickerDialog(QDialog):
     # ── Sync ──────────────────────────────────────────────
 
     def _block_spins(self, block: bool):
-        for s in [
+        spins = [
             self.h_spin,
             self.s_spin,
             self.v_spin,
             self.r_spin,
             self.g_spin,
             self.b_spin,
-        ]:
+        ]
+        if self._alpha_enabled:
+            spins.append(self.a_spin)
+        for s in spins:
             s.blockSignals(block)
         self.hex_edit.blockSignals(block)
 
     def _sync_all_from_hsv(self):
         self._block_spins(True)
         c = QColor.fromHsvF(self._hue, self._sat, self._val)
+        if self._alpha_enabled:
+            c.setAlphaF(self._alpha)
         self.h_spin.setValue(int(self._hue * 360))
         self.s_spin.setValue(int(self._sat * 100))
         self.v_spin.setValue(int(self._val * 100))
         self.r_spin.setValue(c.red())
         self.g_spin.setValue(c.green())
         self.b_spin.setValue(c.blue())
+        if self._alpha_enabled:
+            self.a_spin.setValue(int(round(self._alpha * 100)))
         self.hex_edit.setText(c.name()[1:].upper())
         self._block_spins(False)
 
         self.square.set_hsv(self._hue, self._sat, self._val)
+        if self._alpha_enabled:
+            self.alpha_slider.set_color(c)
+            self.alpha_slider.set_alpha(self._alpha)
         self._result = c
         self._new_swatch.set_color(c)
         self._update_copy_buttons()
@@ -632,11 +738,21 @@ class ColorPickerDialog(QDialog):
         self.square.set_hsv(self._hue, self._sat, self._val)
         self._sync_all_from_hsv()
 
+    def _on_alpha_spin(self, value: int):
+        self._alpha = max(0.0, min(1.0, value / 100.0))
+        self._sync_all_from_hsv()
+
+    def _on_alpha_slider_changed(self):
+        self._alpha = self.alpha_slider.alpha()
+        self._sync_all_from_hsv()
+
     def _on_hex_changed(self, text):
         if len(text) in (6, 8):
             try:
                 c = QColor("#" + text)
                 if c.isValid():
+                    if len(text) == 8 and self._alpha_enabled:
+                        self._alpha = c.alphaF()
                     h, s, v, _ = c.getHsvF()
                     self._hue = h if h >= 0 else 0.0
                     self._sat = s

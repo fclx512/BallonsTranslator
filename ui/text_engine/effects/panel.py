@@ -40,6 +40,7 @@ from .cards import (
     FilterEffectCard,
     GlowEffectCard,
     ShadowEffectCard,
+    StrokeEffectCard,
     TextFillEffectCard,
     _filter_ui_text,
 )
@@ -77,7 +78,12 @@ class TextEffectPanel(PanelArea):
         config_name: str,
         config_expand_name: str,
     ) -> None:
-        super().__init__(panel_name, config_name, config_expand_name)
+        super().__init__(
+            panel_name,
+            config_name,
+            config_expand_name,
+            hide_button=False,
+        )
         self.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
         )
@@ -154,6 +160,7 @@ class TextEffectPanel(PanelArea):
         add_menu.setObjectName('TextEffectAddMenu')
         self.add_effect_actions = {}
         for label, effect_type, icon_name in (
+            (self.tr('Stroke'), 'stroke', 'text-effect-stroke.svg'),
             (self.tr('Shadow'), 'shadow', 'text-effect-shadow.svg'),
             (self.tr('Glow'), 'glow', 'text-effect-glow.svg'),
             (self.tr('Gradient'), 'gradient', 'text-effect-gradient.svg'),
@@ -251,10 +258,7 @@ class TextEffectPanel(PanelArea):
                 else effect_key
             )
             if effect_type == 'stroke':
-                # 描边不设独立效果卡（2026-09-08 用户拍板退役：与主面板
-                # 轮廓行实现重复）。栈内 StrokeEffect 仍由轮廓行经 legacy
-                # 视图读写并正常渲染，只是不再建卡。
-                continue
+                card = StrokeEffectCard(index, self.scrollContent)
             elif effect_type == 'shadow':
                 card = ShadowEffectCard(index, self.scrollContent)
             elif effect_type == 'glow':
@@ -303,6 +307,7 @@ class TextEffectPanel(PanelArea):
                 )
             card.move_requested.connect(self._move_visual_effect)
             card.remove_requested.connect(self.remove_effect_requested.emit)
+            card.geometry_changed.connect(self._sync_content_height)
             (
                 self.base_card_layout
                 if isinstance(card, TextFillEffectCard)
@@ -497,7 +502,7 @@ class TextEffectPanel(PanelArea):
     def _on_add_effect_triggered(self, _checked: bool = False) -> None:
         action = self.sender()
         if action is not None and action.data() in {
-            'shadow', 'glow', 'gradient',
+            'stroke', 'shadow', 'glow', 'gradient',
         }:
             self.add_effect_requested.emit(action.data())
 

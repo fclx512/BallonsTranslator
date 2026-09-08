@@ -68,7 +68,11 @@ def _icon(name: str) -> QIcon:
 
 
 class TransformDragLabel(SizeControlLabel):
-    """Parameter label that starts a value drag on press (Escape aborts)."""
+    """Parameter label that starts a value drag on press (Escape aborts).
+
+    ``drag_enabled=False`` 让标签退回纯描述文本（效果卡把拖拽挪到数值框上，
+    见 ``ui/text_engine/effects/cards.py::EffectNumericControl``）。
+    """
 
     drag_started = Signal()
     drag_canceled = Signal()
@@ -76,8 +80,11 @@ class TransformDragLabel(SizeControlLabel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.drag_enabled = True
 
     def mousePressEvent(self, event):
+        if not self.drag_enabled:
+            return QLabel.mousePressEvent(self, event)
         if event.button() == Qt.MouseButton.LeftButton:
             self.setFocus()
             self.drag_started.emit()
@@ -87,6 +94,16 @@ class TransformDragLabel(SizeControlLabel):
             event.accept()
             return
         return super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if not self.drag_enabled:
+            return QLabel.mouseMoveEvent(self, event)
+        return super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if not self.drag_enabled:
+            return QLabel.mouseReleaseEvent(self, event)
+        return super().mouseReleaseEvent(event)
 
     def abort_drag_session(self):
         self.mouse_pressed = False
@@ -901,7 +918,12 @@ class TextTransformPanel(PanelArea):
         config_name: str,
         config_expand_name: str,
     ):
-        super().__init__(panel_name, config_name, config_expand_name)
+        super().__init__(
+            panel_name,
+            config_name,
+            config_expand_name,
+            hide_button=False,
+        )
         self._base_width_hint = 1
         self._syncing_geometry = False
         self.setSizePolicy(

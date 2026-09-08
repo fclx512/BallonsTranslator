@@ -6,10 +6,12 @@ filter pipeline) and the parameter area laid out to the
 ``TransformParameterPanel`` spec: right-aligned labels, 22px editors,
 two-column grid with span-2 rows for fill, blend, and the gradient
 editor (2026-09-03 user decision, kept for the re-port).
-Fork further retires the standalone stroke card (2026-09-08: duplicate
-of the main panel stroke row, which writes the same stack entry via the
-legacy views) and swaps QColorDialog for the fork's own
-``ui/custom_widget/color_picker.py::ColorPickerDialog`` everywhere.
+Fork restores the standalone stroke card and retires the main panel
+stroke row instead (2026-09-08 用户拍板：描边只走栈——顺序与位置/混合等
+高级参数都需要卡片承载，常驻行与卡片双视图的分离方案实现起来别扭)。
+卡片按渐进披露原则分层：高频参数常显，低频项收进默认收起的「高级」
+子层（展开状态不记忆，每次重建都回到收起）。QColorDialog 一律换 fork
+自己的 ``ui/custom_widget/color_picker.py::ColorPickerDialog``。
 """
 
 from typing import Dict, Optional, Sequence, Tuple
@@ -48,23 +50,27 @@ from qtpy.QtWidgets import (
 from ui.custom_widget.color_picker import ColorPickerDialog
 
 from utils.text_effects import (
+    EFFECT_MAGNITUDE_LIMIT,
     EffectPaint,
     FilterEffect,
     GeneratedEffectPaint,
     GlowEffect,
     LinearGradientPaint,
-    SHADOW_BLUR_LIMIT,
-    SHADOW_DISTANCE_LIMIT,
-    SHADOW_SPREAD_LIMIT,
     ShadowEffect,
     SolidPaint,
+    StrokeEffect,
     TextFillEffect,
 )
 
 from ui.custom_widget.combobox import BottomBorderComboBox
+from ui.custom_widget.spinbox import _drag_global_x
+from ui.custom_widget.view_panel import chevron_down_small, chevron_right_small
 from ui.icon_rendering import render_svg_pixmap
 from ui.misc import themed_icon_path
-from ..transforms.panel import CommittedTransformControl, TransformDragLabel
+from ..transforms.panel import (
+    CommittedTransformControl,
+    _TransformIntegerEdit,
+)
 from .gradient_editor import GradientAngleDial, InlineLinearGradientEditor
 from .paint import paint_effect_paint_preview
 from .filters import (
@@ -235,6 +241,9 @@ class EffectVisibilityButton(QToolButton):
 class _EffectCard(QFrame):
     """Card base: hover-revealed action icons and matched-state styling."""
 
+    # 「高级」子层展开/收起改变卡片高度，面板据此重算卡片堆栈量程。
+    geometry_changed = Signal()
+
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self._hovered = False
@@ -300,6 +309,62 @@ class _EffectCard(QFrame):
         super().leaveEvent(event)
 
 
+class _AdvancedDisclosure(QWidget):
+    """卡内「高级」折叠行：箭头 + 标签 + 非默认值标记。
+
+    不复用 ``ui/custom_widget/view_panel.py::ExpandLabel``：它自带悬停
+    隐藏面板按钮、且没有尾部标记位，卡内两者都不合适。箭头沿用同一套
+    chevron 图标保持视觉一致。
+    """
+
+    toggled = Signal(bool)
+
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
+        super().__init__(parent)
+        self.setObjectName('TextEffectAdvancedRow')
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFixedHeight(20)
+        self._expanded = False
+        self._arrow = QLabel(self)
+        self._arrow.setObjectName('TextEffectParameterIcon')
+        self._arrow.setFixedSize(14, 14)
+        self._label = QLabel(
+            QCoreApplication.translate('TextEffectPanel', 'Advanced'), self
+        )
+        self._label.setObjectName('TextEffectParamLabel')
+        self._modified_dot = QLabel(self)
+        self._modified_dot.setObjectName('TextEffectAdvancedDot')
+        self._modified_dot.setFixedSize(6, 6)
+        self._modified_dot.setVisible(False)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(2, 0, 2, 0)
+        layout.setSpacing(4)
+        layout.addWidget(self._arrow)
+        layout.addWidget(self._label)
+        layout.addStretch()
+        layout.addWidget(self._modified_dot)
+        self._sync_arrow()
+
+    def set_modified(self, modified: bool) -> None:
+        """非默认值标记：收起时也要能看出卡里藏着改过的高级项。"""
+        modified = bool(modified)
+        if self._modified_dot.isVisible() != modified:
+            self._modified_dot.setVisible(modified)
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._expanded = not self._expanded
+            self._sync_arrow()
+            self.toggled.emit(self._expanded)
+        super().mousePressEvent(event)
+
+    def _sync_arrow(self) -> None:
+        self._arrow.setPixmap(
+            chevron_down_small() if self._expanded else chevron_right_small()
+        )
+
+
 def _effect_icon_label(
     icon_name: str,
     parent: QWidget,
@@ -340,18 +405,18 @@ def _set_effect_selector_width(
     The old ``setWidthSampleText('Long / Extrude')`` raised the selector's
     minimum width to ~198px.  The fork right panel is only 348px wide, so a
     Shadow card (whose two-column grid then needed ~382px) clipped the span-2
-    blend/Fill rows.  Shrinkable selectors let Qt compress the card to the
-    available width instead (the sizeHint is ignored, 150px ceiling keeps a
-    single selector from blowing out its column).  Cards are still sized by
-    their content when the panel is wide.
+    blend/Fill rows.  A 72px floor plus a 150px ceiling keeps a single
+    selector from blowing out its column while still letting Qt compress
+    the card to the dock width.
 
-    The 72px floor keeps an Ignored-policy selector sharing a row with a
-    stretch-1 sibling (the Fill row's paint swatch) from being squeezed to
-    zero width — it silently vanished there under the 348px panel
-    (2026-09-08 实机验收缺陷).
+    Policy is ``Preferred``, not ``Ignored``: an Ignored widget reports a
+    zero sizeHint to the layout, so a selector sharing an HBox with the
+    stretch-1 paint swatch was positioned as 0px wide and the swatch was
+    laid out on top of it — the 72px floor fixed only the painting width,
+    not the layout slot (2026-09-08 实机验收：色块压住 Fill 下拉).
     """
     selector.setSizePolicy(
-        QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed
+        QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed
     )
     selector.setMinimumWidth(72)
     selector.setMaximumWidth(150)
@@ -535,10 +600,19 @@ def _set_blend_value(
 
 
 class EffectNumericControl(CommittedTransformControl):
-    """Reuse the committed numeric editor with typed-text preview signals."""
+    """Reuse the committed numeric editor with typed-text preview signals.
+
+    拖拽入口是数值框本身（Blender 式横向拖动，悬停 ↔ 光标 + 背景提亮，
+    Shift 精调），沿用基类的 DRAG_PREVIEW 状态机，所以拖动途中照样走
+    ``preview_requested`` 实时预览、松手经 ``drag_commit_requested`` 提交
+    一次；标签退回纯描述文本（2026-09-08 用户拍板，上游的「拖标签」不再用）。
+    """
 
     value_preview_requested = Signal(str, object)
     value_preview_canceled = Signal(str)
+
+    #: 与 ui/custom_widget/spinbox.py::DragAdjustMixin.drag_start_threshold 一致
+    DRAG_THRESHOLD = 4.0
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -551,6 +625,9 @@ class EffectNumericControl(CommittedTransformControl):
         self.label.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
+        self.label.drag_enabled = False
+        self.label.setCursor(Qt.CursorShape.ArrowCursor)
+        self.label.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.editor.setObjectName('TextEffectParamEditor')
         self.editor.setProperty('cardEditor', True)
         self.editor.setMinimumWidth(0)
@@ -562,6 +639,114 @@ class EffectNumericControl(CommittedTransformControl):
         self.layout().setSpacing(8)
         self.layout().setStretch(0, 0)
         self.layout().setStretch(1, 1)
+        self._drag_pending = False
+        self._drag_active = False
+        self._drag_press_x = 0.0
+        self._drag_last_x = 0.0
+        self._drag_hovered = False
+        self._drag_state = ''
+        self.editor.setMouseTracking(True)
+        # 基类已装过一次同一个过滤器；重复安装会让每个事件走两遍本类逻辑
+        self.editor.removeEventFilter(self)
+        self.editor.installEventFilter(self)
+
+    # ---- Blender 式箱体拖拽 ---------------------------------------------
+
+    def _editor_stepper_hit(self, event) -> bool:
+        """整数编辑器右侧的上下步进按钮不吃拖拽（交给原生点击）。"""
+        if not isinstance(self.editor, _TransformIntegerEdit):
+            return False
+        pos = event.position().toPoint()
+        up_rect, down_rect = self.editor._button_rects()
+        return up_rect.contains(pos) or down_rect.contains(pos)
+
+    def _editor_drag_event(self, event) -> bool:
+        etype = event.type()
+        if etype == QEvent.Type.Enter:
+            self._drag_hovered = True
+            self._sync_editor_drag_appearance()
+        elif etype == QEvent.Type.Leave:
+            self._drag_hovered = False
+            self._sync_editor_drag_appearance()
+        elif etype == QEvent.Type.MouseButtonPress:
+            if (
+                event.button() == Qt.MouseButton.LeftButton
+                and self.isEnabled()
+                and not self._editor_stepper_hit(event)
+            ):
+                self._drag_pending = True
+                self._drag_active = False
+                self._drag_press_x = _drag_global_x(event)
+                self._drag_last_x = self._drag_press_x
+            return False  # 先让点击落到 QLineEdit：没拖动就是进文本编辑
+        elif etype == QEvent.Type.MouseMove:
+            if self._drag_pending or self._drag_active:
+                x = _drag_global_x(event)
+                if (
+                    not self._drag_active
+                    and abs(x - self._drag_press_x) >= self.DRAG_THRESHOLD
+                ):
+                    self._drag_active = True
+                    self._drag_last_x = x
+                    self._start_drag()
+                    self.editor.deselect()
+                if self._drag_active:
+                    self._move_drag(x - self._drag_last_x)
+                    self._drag_last_x = x
+                    self._sync_editor_drag_appearance()
+                    return True
+        elif etype == QEvent.Type.MouseButtonRelease:
+            if (
+                event.button() == Qt.MouseButton.LeftButton
+                and (self._drag_pending or self._drag_active)
+            ):
+                was_active = self._drag_active
+                self._drag_pending = False
+                self._drag_active = False
+                if was_active:
+                    self._finish_drag()
+                    self._sync_editor_drag_appearance()
+                    return True
+                self._sync_editor_drag_appearance()
+        elif (
+            etype == QEvent.Type.KeyPress
+            and event.key() == Qt.Key.Key_Escape
+            and self._drag_active
+        ):
+            self._drag_active = False
+            self._drag_pending = False
+            self.cancel_preview()
+            self._sync_editor_drag_appearance()
+            return True
+        return False
+
+    def _sync_editor_drag_appearance(self) -> None:
+        if self._drag_active:
+            state = 'drag'
+        elif self._drag_pending or (
+            self._drag_hovered and not self.editor.hasFocus()
+        ):
+            state = 'hover'
+        else:
+            state = ''
+        if self._drag_state != state:
+            self._drag_state = state
+            self.editor.setProperty('dragState', state)
+            style = self.editor.style()
+            style.unpolish(self.editor)
+            style.polish(self.editor)
+        if self._drag_active or self._drag_pending:
+            cursor = Qt.CursorShape.SizeHorCursor
+        elif self._drag_hovered and not self.editor.hasFocus():
+            cursor = Qt.CursorShape.SizeHorCursor
+        else:
+            cursor = Qt.CursorShape.IBeamCursor
+        self.editor.setCursor(cursor)
+
+    def eventFilter(self, watched, event) -> bool:
+        if watched is self.editor and self._editor_drag_event(event):
+            return True
+        return super().eventFilter(watched, event)
 
     def _on_text_edited(self) -> None:
         super()._on_text_edited()
@@ -755,7 +940,6 @@ class _EffectCardMixin:
         if show_gradient and isinstance(paint, LinearGradientPaint):
             self.gradient_editor.set_paint(paint)
         if visibility_changed:
-            self._controls_layout.invalidate()
             self.layout().invalidate()
             self.updateGeometry()
 
@@ -829,6 +1013,188 @@ class _EffectCardMixin:
         header.addWidget(self.visibility_button)
         return header
 
+    def _build_advanced_section(
+        self, advanced_grid: QGridLayout
+    ) -> Tuple[QWidget, "_AdvancedDisclosure"]:
+        """把低频参数网格包进默认收起的容器，并配「高级」折叠行。
+
+        渐进披露原则（2026-09-08 用户拍板）：卡片常显高频参数，位置/混合/
+        不透明度等低频项收进本容器；展开状态不记忆，卡片重建即回到收起。
+        """
+        container = QWidget(self)
+        container.setObjectName('TextEffectControl')
+        container_layout = QVBoxLayout(container)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.setSpacing(0)
+        container_layout.addLayout(advanced_grid)
+        container.setVisible(False)
+        disclosure = _AdvancedDisclosure(self)
+        disclosure.toggled.connect(
+            lambda expanded: self._on_advanced_toggled(container, expanded)
+        )
+        self._advanced_container = container
+        self.advanced_disclosure = disclosure
+        return container, disclosure
+
+    def _on_advanced_toggled(
+        self, container: QWidget, expanded: bool
+    ) -> None:
+        container.setVisible(expanded)
+        self.layout().invalidate()
+        self.updateGeometry()
+        self.geometry_changed.emit()
+
+    def _set_advanced_modified(self, modified: bool) -> None:
+        disclosure = getattr(self, 'advanced_disclosure', None)
+        if disclosure is not None:
+            disclosure.set_modified(modified)
+
+
+class StrokeEffectCard(_EffectCard, _EffectCardMixin):
+    """Edit one Stroke at its complete-stack index.
+
+    常驻描边行退役后描边只走栈（2026-09-08 用户拍板）：宽度与颜色常显，
+    位置/不透明度/混合收进「高级」子层。
+    """
+
+    value_commit_requested = Signal(int, str, object)
+    value_preview_requested = Signal(int, str, object)
+    parameter_preview_requested = Signal(int, str, object)
+    parameter_commit_requested = Signal(int, str, object)
+    preview_canceled = Signal(int, str)
+    remove_requested = Signal(int)
+    move_requested = Signal(int, int)
+    color_dialog_active_changed = Signal(bool)
+
+    def __init__(self, index: int, parent=None) -> None:
+        super().__init__(parent)
+        self.index = int(index)
+        self.setObjectName('TextEffectParameterPanel')
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
+        )
+
+        header = self._build_header(
+            'text-effect-stroke.svg', self.tr('Stroke')
+        )
+
+        self.width_control = EffectNumericControl(
+            self.tr('Width'), 'width', 1.0, 0.0,
+            EFFECT_MAGNITUDE_LIMIT, '', 0.01,
+            self, decimals=2,
+        )
+        self.position_selector = BottomBorderComboBox(
+            self, text_alignment=Qt.AlignmentFlag.AlignCenter
+        )
+        self.position_selector.setObjectName('TextEffectParamEditor')
+        self.position_selector.setAccessibleName(self.tr('Stroke Position'))
+        for label, value in (
+            (self.tr('Inside'), 'inside'),
+            (self.tr('Center'), 'center'),
+            (self.tr('Outside'), 'outside'),
+        ):
+            self.position_selector.addItem(label, value)
+        _set_effect_selector_width(self.position_selector)
+        self.position_selector.currentIndexChanged.connect(
+            self._on_position_changed
+        )
+        self.opacity_control = EffectNumericControl(
+            self.tr('Opacity'), 'opacity', 100.0, 0.0, 1.0, '%', 1.0,
+            self, decimals=1,
+        )
+        blend_widget, self.blend_selector = _blend_control(
+            self, self.tr('Stroke Blend')
+        )
+        self.blend_selector.mode_changed.connect(self._on_blend_changed)
+        for control in self.iter_controls():
+            control.commit_requested.connect(self._on_control_commit)
+            control.value_preview_requested.connect(self._on_value_preview)
+            control.preview_requested.connect(self._on_parameter_preview)
+            control.drag_commit_requested.connect(
+                self._on_parameter_commit
+            )
+            control.preview_canceled.connect(self._on_preview_canceled)
+            control.value_preview_canceled.connect(
+                self._on_preview_canceled
+            )
+
+        self.gradient_editor = InlineLinearGradientEditor(
+            LinearGradientPaint(), self
+        )
+        self._connect_gradient_editor(self.gradient_editor)
+
+        paint_row = self._build_paint_row(self.tr('Stroke Fill'))
+
+        primary = QGridLayout()
+        primary.setContentsMargins(0, 0, 0, 0)
+        primary.setHorizontalSpacing(8)
+        primary.setVerticalSpacing(8)
+        primary.addWidget(self.width_control, 0, 0)
+        primary.addWidget(self.position_selector, 0, 1)
+        primary.addWidget(paint_row, 1, 0, 1, 2)
+        primary.addWidget(self.gradient_editor, 2, 0, 1, 2)
+        primary.setColumnStretch(0, 1)
+        primary.setColumnStretch(1, 1)
+
+        advanced = QGridLayout()
+        advanced.setContentsMargins(0, 0, 0, 0)
+        advanced.setHorizontalSpacing(8)
+        advanced.setVerticalSpacing(8)
+        advanced.addWidget(self.opacity_control, 0, 0)
+        advanced.addWidget(blend_widget, 0, 1)
+        advanced.setColumnStretch(0, 1)
+        advanced.setColumnStretch(1, 1)
+
+        advanced_container, advanced_disclosure = (
+            self._build_advanced_section(advanced)
+        )
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(8, 6, 8, 8)
+        layout.setSpacing(8)
+        layout.addLayout(header)
+        layout.addLayout(primary)
+        layout.addWidget(advanced_disclosure)
+        layout.addWidget(advanced_container)
+
+    def set_move_enabled(self, up: bool, down: bool) -> None:
+        self.move_up_button.setEnabled(up)
+        self.move_down_button.setEnabled(down)
+
+    def set_value(self, stroke: StrokeEffect) -> None:
+        self.visibility_button.set_visibility(stroke.enabled)
+        _set_blend_value(self.blend_selector, stroke)
+        with QSignalBlocker(self.position_selector):
+            self.position_selector.setCurrentIndex(
+                self.position_selector.findData(stroke.position)
+            )
+        self.width_control.set_model_value(stroke.width)
+        self.opacity_control.set_model_value(stroke.opacity)
+        self._sync_paint_value(stroke.paint)
+        self.paint_button.set_paint(
+            self._paint_seed,
+            description=(
+                self.tr('Edit Stroke Gradient')
+                if isinstance(stroke.paint, LinearGradientPaint)
+                else self.tr('Choose Stroke Color')
+            ),
+        )
+        self._set_advanced_modified(
+            stroke.opacity != 1.0 or stroke.blend_mode != 'normal'
+        )
+
+    def iter_controls(self) -> Tuple[EffectNumericControl, ...]:
+        return (self.width_control, self.opacity_control)
+
+    def _on_position_changed(self, combo_index: int) -> None:
+        if combo_index >= 0:
+            self.value_commit_requested.emit(
+                self.index,
+                'position',
+                self.position_selector.itemData(combo_index),
+            )
+
 
 class ShadowEffectCard(_EffectCard, _EffectCardMixin):
     """Edit one typed Shadow at its complete-stack index."""
@@ -893,17 +1259,17 @@ class ShadowEffectCard(_EffectCard, _EffectCardMixin):
         )
         self.distance_control = EffectNumericControl(
             self.tr('Distance'), 'distance', 1.0,
-            0.0, SHADOW_DISTANCE_LIMIT, '', 0.01,
+            0.0, EFFECT_MAGNITUDE_LIMIT, '', 0.01,
             self, decimals=2,
         )
         self.blur_control = EffectNumericControl(
             self.tr('Blur'), 'blur', 1.0, 0.0,
-            SHADOW_BLUR_LIMIT, '', 0.01,
+            EFFECT_MAGNITUDE_LIMIT, '', 0.01,
             self, decimals=2,
         )
         self.spread_control = EffectNumericControl(
             self.tr('Spread'), 'spread', 1.0, 0.0,
-            SHADOW_SPREAD_LIMIT, '', 0.01,
+            EFFECT_MAGNITUDE_LIMIT, '', 0.01,
             self, decimals=2,
         )
         blend_widget, self.blend_selector = _blend_control(
@@ -931,28 +1297,40 @@ class ShadowEffectCard(_EffectCard, _EffectCardMixin):
 
         paint_row = self._build_paint_row(self.tr('Shadow Fill'))
 
-        controls = QGridLayout()
-        controls.setContentsMargins(0, 0, 0, 0)
-        controls.setHorizontalSpacing(8)
-        controls.setVerticalSpacing(8)
-        controls.addWidget(self.type_selector, 0, 0)
-        controls.addWidget(self.opacity_control, 0, 1)
-        controls.addWidget(self.angle_control, 1, 0)
-        controls.addWidget(self.distance_control, 1, 1)
-        controls.addWidget(self.blur_control, 2, 0)
-        controls.addWidget(self.spread_control, 2, 1)
-        controls.addWidget(paint_row, 3, 0, 1, 2)
-        controls.addWidget(blend_widget, 4, 0, 1, 2)
-        controls.addWidget(self.gradient_editor, 5, 0, 1, 2)
-        controls.setColumnStretch(0, 1)
-        controls.setColumnStretch(1, 1)
-        self._controls_layout = controls
+        primary = QGridLayout()
+        primary.setContentsMargins(0, 0, 0, 0)
+        primary.setHorizontalSpacing(8)
+        primary.setVerticalSpacing(8)
+        primary.addWidget(self.type_selector, 0, 0)
+        primary.addWidget(self.angle_control, 0, 1)
+        primary.addWidget(self.distance_control, 1, 0)
+        primary.addWidget(self.blur_control, 1, 1)
+        primary.addWidget(paint_row, 2, 0, 1, 2)
+        primary.addWidget(self.gradient_editor, 3, 0, 1, 2)
+        primary.setColumnStretch(0, 1)
+        primary.setColumnStretch(1, 1)
+
+        advanced = QGridLayout()
+        advanced.setContentsMargins(0, 0, 0, 0)
+        advanced.setHorizontalSpacing(8)
+        advanced.setVerticalSpacing(8)
+        advanced.addWidget(self.opacity_control, 0, 0)
+        advanced.addWidget(self.spread_control, 0, 1)
+        advanced.addWidget(blend_widget, 1, 0, 1, 2)
+        advanced.setColumnStretch(0, 1)
+        advanced.setColumnStretch(1, 1)
+
+        advanced_container, advanced_disclosure = (
+            self._build_advanced_section(advanced)
+        )
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 6, 8, 8)
         layout.setSpacing(8)
         layout.addLayout(header)
-        layout.addLayout(controls)
+        layout.addLayout(primary)
+        layout.addWidget(advanced_disclosure)
+        layout.addWidget(advanced_container)
 
     def set_move_enabled(self, up: bool, down: bool) -> None:
         self.move_up_button.setEnabled(up)
@@ -984,6 +1362,11 @@ class ShadowEffectCard(_EffectCard, _EffectCardMixin):
         self.angle_dial.end_interaction()
         self.angle_dial.set_angle(shadow.angle)
         self._sync_paint_value(shadow.paint)
+        self._set_advanced_modified(
+            shadow.opacity != 1.0
+            or shadow.spread != 0.0
+            or shadow.blend_mode != 'normal'
+        )
         self.paint_button.set_paint(
             self._paint_seed,
             description=(
@@ -1094,11 +1477,11 @@ class GlowEffectCard(_EffectCard, _EffectCardMixin):
         )
         self.size_control = EffectNumericControl(
             self.tr('Size'), 'size', 1.0, 0.0,
-            SHADOW_BLUR_LIMIT, '', 0.01, self, decimals=2,
+            EFFECT_MAGNITUDE_LIMIT, '', 0.01, self, decimals=2,
         )
         self.spread_control = EffectNumericControl(
             self.tr('Spread'), 'spread', 1.0, 0.0,
-            SHADOW_SPREAD_LIMIT, '', 0.01, self, decimals=2,
+            EFFECT_MAGNITUDE_LIMIT, '', 0.01, self, decimals=2,
         )
         blend_widget, self.blend_selector = _blend_control(
             self, self.tr('Glow Blend')
@@ -1125,26 +1508,38 @@ class GlowEffectCard(_EffectCard, _EffectCardMixin):
 
         paint_row = self._build_paint_row(self.tr('Glow Fill'))
 
-        controls = QGridLayout()
-        controls.setContentsMargins(0, 0, 0, 0)
-        controls.setHorizontalSpacing(8)
-        controls.setVerticalSpacing(8)
-        controls.addWidget(self.type_selector, 0, 0)
-        controls.addWidget(self.opacity_control, 0, 1)
-        controls.addWidget(self.size_control, 1, 0)
-        controls.addWidget(self.spread_control, 1, 1)
-        controls.addWidget(paint_row, 2, 0, 1, 2)
-        controls.addWidget(blend_widget, 3, 0, 1, 2)
-        controls.addWidget(self.gradient_editor, 4, 0, 1, 2)
-        controls.setColumnStretch(0, 1)
-        controls.setColumnStretch(1, 1)
-        self._controls_layout = controls
+        primary = QGridLayout()
+        primary.setContentsMargins(0, 0, 0, 0)
+        primary.setHorizontalSpacing(8)
+        primary.setVerticalSpacing(8)
+        primary.addWidget(self.type_selector, 0, 0)
+        primary.addWidget(self.size_control, 0, 1)
+        primary.addWidget(paint_row, 1, 0, 1, 2)
+        primary.addWidget(self.gradient_editor, 2, 0, 1, 2)
+        primary.setColumnStretch(0, 1)
+        primary.setColumnStretch(1, 1)
+
+        advanced = QGridLayout()
+        advanced.setContentsMargins(0, 0, 0, 0)
+        advanced.setHorizontalSpacing(8)
+        advanced.setVerticalSpacing(8)
+        advanced.addWidget(self.opacity_control, 0, 0)
+        advanced.addWidget(self.spread_control, 0, 1)
+        advanced.addWidget(blend_widget, 1, 0, 1, 2)
+        advanced.setColumnStretch(0, 1)
+        advanced.setColumnStretch(1, 1)
+
+        advanced_container, advanced_disclosure = (
+            self._build_advanced_section(advanced)
+        )
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 6, 8, 8)
         layout.setSpacing(8)
         layout.addLayout(header)
-        layout.addLayout(controls)
+        layout.addLayout(primary)
+        layout.addWidget(advanced_disclosure)
+        layout.addWidget(advanced_container)
 
     def set_move_enabled(self, up: bool, down: bool) -> None:
         self.move_up_button.setEnabled(up)
@@ -1169,6 +1564,11 @@ class GlowEffectCard(_EffectCard, _EffectCardMixin):
         ):
             control.set_model_value(getattr(glow, name))
         self._sync_paint_value(glow.paint)
+        self._set_advanced_modified(
+            glow.opacity != 1.0
+            or glow.spread != 0.0
+            or glow.blend_mode != 'normal'
+        )
         self.paint_button.set_paint(
             self._paint_seed,
             description=(
@@ -1259,22 +1659,34 @@ class TextFillEffectCard(_EffectCard, _EffectCardMixin):
             self._on_blend_changed
         )
 
-        controls = QGridLayout()
-        controls.setContentsMargins(0, 0, 0, 0)
-        controls.setHorizontalSpacing(8)
-        controls.setVerticalSpacing(8)
-        controls.setColumnStretch(0, 1)
-        controls.setColumnStretch(1, 1)
-        controls.addWidget(self.opacity_control, 0, 0)
-        controls.addWidget(blend_widget, 0, 1)
-        controls.addWidget(self.gradient_editor, 1, 0, 1, 2)
-        self._controls_layout = controls
+        primary = QGridLayout()
+        primary.setContentsMargins(0, 0, 0, 0)
+        primary.setHorizontalSpacing(8)
+        primary.setVerticalSpacing(8)
+        primary.setColumnStretch(0, 1)
+        primary.setColumnStretch(1, 1)
+        primary.addWidget(self.gradient_editor, 0, 0, 1, 2)
+
+        advanced = QGridLayout()
+        advanced.setContentsMargins(0, 0, 0, 0)
+        advanced.setHorizontalSpacing(8)
+        advanced.setVerticalSpacing(8)
+        advanced.addWidget(self.opacity_control, 0, 0)
+        advanced.addWidget(blend_widget, 0, 1)
+        advanced.setColumnStretch(0, 1)
+        advanced.setColumnStretch(1, 1)
+
+        advanced_container, advanced_disclosure = (
+            self._build_advanced_section(advanced)
+        )
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 6, 8, 8)
         layout.setSpacing(8)
         layout.addLayout(header)
-        layout.addLayout(controls)
+        layout.addLayout(primary)
+        layout.addWidget(advanced_disclosure)
+        layout.addWidget(advanced_container)
 
     def set_value(self, fill: TextFillEffect) -> None:
         """Project one foreground layer into this fixed card."""
@@ -1288,6 +1700,9 @@ class TextFillEffectCard(_EffectCard, _EffectCardMixin):
         self._paint_seed = fill.paint
         assert isinstance(self._paint_seed, LinearGradientPaint)
         self.gradient_editor.set_paint(self._paint_seed)
+        self._set_advanced_modified(
+            fill.opacity != 1.0 or fill.blend_mode != 'normal'
+        )
         self.layout().invalidate()
         self.updateGeometry()
 
