@@ -60,7 +60,11 @@ class DetectTorchTests(unittest.TestCase):
 class ReinstallTorchPlatformTests(unittest.TestCase):
     def _prepare(self, platform, gpu_info):
         args = types.SimpleNamespace(reinstall_torch=True, frozen=False)
-        with mock.patch.object(sys, "platform", platform), mock.patch.object(
+        # prepare_environment 对捆绑解释器（路径含 ballontrans_pylibs_win）直接
+        # 早退，仓库测试恰用该解释器，须伪装成普通路径才走得到分支逻辑。
+        with mock.patch("sys.executable", "/usr/bin/python3"), mock.patch.object(
+            sys, "platform", platform
+        ), mock.patch.object(
             launch, "args", args
         ), mock.patch.object(launch, "detect_gpu_info", lambda: gpu_info), mock.patch.object(
             launch, "ensure_uv", lambda: None

@@ -26,7 +26,6 @@ dependencies = [
   "PyQt6>=6.8.1",
   "PyQt6-Qt6>=6.8.1",
   "pywin32; sys_platform == 'win32'",
-  "pyobjc-framework-Cocoa; sys_platform == 'darwin'",
   "pyyaml",
   "qtpy",
   "requests",
