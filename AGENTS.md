@@ -48,7 +48,7 @@ modules/
 | `ui/overlay_slide.py` | `OverlaySlider` — 覆盖面板滑入滑出动画（GlobalSearchWidget、PageList 用它） |
 | `ui/custom_widget/` | 可复用控件库（`__init__.py` 统一导出，见下方"打包控件功能"） |
 | `config/` | `config.json`(gitignore), `stylesheet.css`, `themes.json`, `custom_themes.json`, `textstyles/` |
-| `scripts/` | `verify.py`, `check_docs.py`, `check_syntax.py`, `qm_compile.py`, `i18n_check.py` |
+| `scripts/` | `verify.py`, `check_docs.py`, `check_syntax.py`, `check_audit.py`, `check_showcase.py`, `qm_compile.py`, `i18n_check.py` |
 
 ## 打包控件功能
 
@@ -130,11 +130,12 @@ modules/
 
 `./ballontrans_pylibs_win/python.exe scripts/verify.py`
 
-一条命令依次跑 语法 → 文档 → 审计 → i18n → qm → 冒烟；**成功每步只打一行，失败才完整打印报错（据此修复）**。各步自动判定：
+一条命令依次跑 语法 → 文档 → 审计 → 展示台覆盖 → i18n → qm → 冒烟；**成功每步只打一行，失败才完整打印报错（据此修复）**。各步自动判定：
 
 - **语法**：只查 git 改动涉及的 .py（`--all` 改查全部 ui/+utils/）
 - **文档**：全量校验 `AGENTS.md` 与 `docs/` 活文档里的路径/符号引用（`scripts/check_docs.py`）
 - **审计**：登记表契约（`scripts/check_audit.py` + `scripts/audit_registry.json`）——`deprecated` 已删文件不得复活、残留引用须清零（`allowed_mentions` 白名单外）；`suspended` 休眠文件不得被主 UI import；未登记删除仅提示不失败
+- **展示台覆盖**：`ui/custom_widget` 每个导出必须在 `scripts/style_showcase.py` 展示或 `EXCLUDED` 登记（`scripts/check_showcase.py`，纯 AST）
 - **i18n**：全量扫描；硬编码中文/缺失条目为失败，孤儿条目降级为警告（项目大量 `canvas.tr()`/`self.tr(variable)` 间接调用是已知噪音，详见上方 i18n 说明）
 - **qm**：ts 有改动时自动编译
 - **冒烟**：改动命中启动链文件（`launch.py`/`modules/base.py`/`utils/profile_manager.py`/`ui/configpanel.py`/`ui/mainwindow.py`）时自动触发，`--smoke` 可强制

@@ -9,15 +9,16 @@
 
 ## 一、质量保障 / 自动化检查
 
-**统一入口是 `verify.py`**（语法 → 文档 → 审计 → i18n → qm → 冒烟），
+**统一入口是 `verify.py`**（语法 → 文档 → 审计 → 展示台覆盖 → i18n → qm → 冒烟），
 日常开发跑它即可；发版前加 `--full`（追加 ruff + pytest）。
 
 | 脚本 | 用途 | 运行方式 |
 |---|---|---|
-| `scripts/verify.py` | **一键检查**：语法 → 文档 → 审计 → i18n → qm → 冒烟；成功每步只打一行 | `python scripts/verify.py`（`--smoke` 强制冒烟，`--all` 全量语法，`--full` 发版门禁追加 ruff+pytest） |
+| `scripts/verify.py` | **一键检查**：语法 → 文档 → 审计 → 展示台覆盖 → i18n → qm → 冒烟；成功每步只打一行 | `python scripts/verify.py`（`--smoke` 强制冒烟，`--all` 全量语法，`--full` 发版门禁追加 ruff+pytest） |
 | `scripts/check_syntax.py` | 语法检查（编译 + 混合缩进 + UTF-8 BOM） | `python scripts/check_syntax.py <文件...>` |
 | `scripts/check_docs.py` | 校验 `AGENTS.md` 与 `docs/` 活文档的路径/符号引用 + scripts/README 登记齐全 | `python scripts/check_docs.py` |
 | `scripts/check_audit.py` | 审计登记表契约（deprecated 残留引用 / suspended 被 import） | `python scripts/check_audit.py` |
+| `scripts/check_showcase.py` | 展示台覆盖校验：`ui/custom_widget` 每个导出必须在 `scripts/style_showcase.py` 展示或 `EXCLUDED` 登记（纯 AST，不导入 Qt） | `python scripts/check_showcase.py` |
 | `scripts/i18n_check.py` | 审计 i18n（硬编码中文、缺失/多余的 .ts 条目），发版前 `--ci` | `python scripts/i18n_check.py` |
 | `scripts/qm_compile.py` | 编译 `.ts` → `.qm`（Qt 二进制翻译文件） | `python scripts/qm_compile.py translate/zh_CN.ts translate/zh_CN.qm` |
 | `scripts/ts_auto_fill.py` | 自动同步 `self.tr()` 调用与 `.ts` 文件，`--apply` 后自动重编 .qm | `python scripts/ts_auto_fill.py --apply` |
@@ -36,7 +37,8 @@
 
 | 脚本 | 用途 | 运行方式 |
 |---|---|---|
-| `scripts/style_showcase.py` | 自定义控件样式展示台（人工目视）：Tab1 原生 vs 封装对照（识别哪些类必须用 `ui/custom_widget` 封装），Tab2 全部可离线实例化控件分区展示；新增控件在对应分区 rows 追加一行。系统 Python 启动时自动切便携解释器重跑 | `python scripts/style_showcase.py` |
+| `scripts/style_showcase.py` | 控件样式展示台（人工目视）：Tab1 原生 vs 封装对照（识别哪些类必须用 `ui/custom_widget` 封装），Tab2 按面板分区的全部控件（封装类 + 应用层复合控件），每行带样式来源徽章（类名/objectName/自绘/内联/全局兜底/无规则）+ `路径::符号` 一键复制，支持搜索、目录跳转、样式来源筛选、亮暗主题切换、状态矩阵（正常/禁用/悬停/聚焦）。系统 Python 启动时自动切便携解释器重跑；`--selftest` 无界面自检全部工厂 | `python scripts/style_showcase.py` |
+| `scripts/style_showcase.bat` | 展示台一键启动（双击即可，可透传参数如 `--selftest`）；优先用便携解释器，退回 `py`/`python`，非零退出码才 pause | 双击 或 `scripts\style_showcase.bat` |
 | `scripts/pie_menu_test.py` | 饼菜单/快捷菜单离线功能测试（状态机/命中判定/命令注册，独立进程沙箱配置）；功能已上线，后续加功能卡片等小修小补可复用 | `python scripts/pie_menu_test.py` |
 | `scripts/mw_repro.py` | **MainWindow 在线演练台**：拉起真实主窗口（必须窗口模式，offscreen 起不来 FramelessWindow）做模拟复现与交互驱动——真实绘制路径/原生模态框/GC 时机类问题的排查工具。`--scenario group-undo` 跑组化撤销全链路（自动点确认弹窗，延迟须 ≥200ms），`--project` 只读打开真实工程，`--no-show`/`--no-panel`/`--watchdog` 控制形态；faulthandler 常开。起源=确认弹窗 GC 悬空 AV 闪退排查（经验教训 §3.3） | `python scripts/mw_repro.py [--scenario group-undo\|none] [--project DIR] [--pages 2 --blocks 8]` |
 

@@ -12,6 +12,8 @@ Step activation:
   - audit  : always (check_audit.py: audit_registry.json 契约——deprecated 已删
             文件不得复活/残留引用（allowed_mentions 白名单外），suspended 休眠
             文件不得被主 UI import；未登记删除仅提示不失败）
+  - showcase: always (check_showcase.py: ui/custom_widget 导出清单 vs
+            scripts/style_showcase.py 展示/排除登记，防新增控件漏展示)
   - i18n   : always (scans whole ui/modules/utils; known orphans exempted)
   - qm     : only when a .ts file changed
   - smoke  : with --smoke, or automatically when a startup-chain file changed
@@ -192,6 +194,15 @@ def main():
     else:
         failures += 1
         print("❌ audit: 审计登记表/删除残留检查失败")
+        _dump(r)
+
+    # ── 3b. showcase coverage ───────────────────────────────────────────
+    r = _run([_py(), str(ROOT / "scripts" / "check_showcase.py")])
+    if r.returncode == 0:
+        print("✅ showcase: 展示台覆盖与 ui/custom_widget 导出一致")
+    else:
+        failures += 1
+        print("❌ showcase: 展示台漏登记 / 重复登记 / 陈旧登记")
         _dump(r)
 
     # ── 4. i18n ──────────────────────────────────────────────────────────

@@ -35,6 +35,24 @@
 
 **涉及文件：** `ui/text_engine/effects/cards.py`、`ui/text_engine/effects/panel.py`、`ui/text_engine/effects/edit_session.py`、`ui/text_engine/effects/gradient_editor.py`、`ui/text_engine/effects/filters/filter_grain.py`、`ui/text_engine/transforms/panel.py`、`ui/custom_widget/view_panel.py`、`ui/custom_widget/combobox.py`、`ui/custom_widget/color_picker.py`、`ui/text_engine/item.py`、`ui/text_panel.py`、`ui/configpanel.py`、`utils/fontformat.py`、`utils/text_effects.py`、`utils/config.py`、`config/stylesheet.css`、`icons/text-effect-stroke.svg`、`scripts/audit_registry.json`、`translate/zh_CN.ts`、`translate/zh_CN.qm`、`tests/test_text_effects_cards.py`、`tests/test_text_effects_stroke_follow.py`、`tests/test_screen_picker.py`、`AGENTS.md`、`docs/技术实现/效果卡渐进披露_验收清单.md`、`docs/技术实现/效果栈移植与窄栏图标重绘_计划.md`
 
+### 控件样式展示台升级为「控件地图」+ 覆盖门禁 + 闪退修复
+
+**问题/需求：** 用户要求把已有的 `scripts/style_showcase.py`（原生 vs 封装对照 + 控件一览）继续完善成「排列展示项目用到的所有控件、方便查找和指定优化」的工具。讨论后拍板四项：①展示范围扩到应用层复合控件；②每行 `路径::符号` + 一键复制、搜索框 + 目录跳转、样式来源标注、亮暗主题 + 状态矩阵；③加静态覆盖校验。实施后用户实机验收时点开关闪退，一并修复并补一键启动 bat。
+
+**改动要点：**
+
+- **范围与分区**：72 行控件，除 `ui/custom_widget` 全量（补齐此前缺的 `ComboBox`/`FlowLayout`/`SizeControlLabel`/`SmallSizeControlLabel`/`ScrollBar`）外纳入应用层复合控件，按「用在哪个面板」分区：配置面板（`ui/configpanel.py::ConfigSubBlock` 等）、模块参数表单（`ui/module_parse_widgets.py::ParamWidget` 族）、文本格式面板（`ui/style_format_editor.py::FieldEditor`）、变换面板（`ui/text_engine/transforms/panel.py::CommittedTransformControl`）、效果栈（`ui/text_engine/effects/cards.py::StrokeEffectCard` 等）、样式管理器与饼菜单。无法离线实例化的进 `EXCLUDED` 字典，渲染成「未纳入展示」分区并写原因。
+- **指定优化能力**：每行右侧固定簇 = 样式来源徽章（`_style_source()` 自动判定 类名/objectName/自绘/内联/全局兜底/无规则，决定改 QSS 还是改代码）+ `路径::符号`（可省略中段、tooltip 全量）+ 一键复制；工具栏含搜索、样式来源筛选、亮暗主题切换、状态矩阵（`_grab_state()` 用 `WA_DontShowOnScreen` 宿主 + `setFocus()` 抓悬停/聚焦态，按 sizeHint 自然尺寸渲染，2×2 网格排布）。
+- **闪退根因（用户实机点开关触发）**：`_grab_state` 必须 `processEvents()`，重建耗时期间再点「状态矩阵」/切主题会**重入** `rebuild()`——内层 `scroll.setWidget()` 删掉外层已登记区块，外层 `_rebuild_index()` 拿到已析构 QWidget → `RuntimeError: wrapped C/C++ object ... has been deleted`。修法=重入守卫（`_rebuilding`/`_rebuild_pending`，重入只记待办、当前重建结束后补跑一次）+ `_rebuild_index` 加 RuntimeError 防御。
+- **零痕迹保护**：切主题走 `reverse_icon=True` 会就地重写 `icons/*.svg`；启动快照全部 svg 原始字节，`aboutToQuit` 逐字节还原（不用「按主题色反推」——`icons/text-effect-stroke.svg` 的提交态填充色与其他图标不一致，映射会留 diff）。同时调用 `utils/safe_qt.py::install_qt_warning_filter` 屏蔽「字号<=0」良性噪音。
+- **覆盖门禁**：新增 `scripts/check_showcase.py`（纯 AST，比对 `ui/custom_widget/__init__.py` 导出清单 vs 展示/`EXCLUDED` 登记，漏登/重复/陈旧即失败），并入 `scripts/verify.py` 每次执行；`tests/test_showcase_coverage.py` 复用同一 `find_problems()`。
+- **顺带修两处文档漂移**：`docs/基础速查/打包控件功能使用说明.md` 速查表删除幽灵条目 `FadeLabel`（`ui/custom_widget/label.py` 已无此类，裸符号名 check_docs 查不到）；展示台 EXCLUDED 曾把 `ScrollBar` 误标「旧版遗留」，实际 `ui/canvas.py`/`ui/textedit_area.py` 在用，改为展示行。
+- **一键启动**：`scripts/style_showcase.bat`（优先便携解释器，退回 `py`/`python`，非零退出码才 pause；仓库根/scripts 内/任意目录绝对路径三种调用方式均已实测）。**批处理必须纯 ASCII**——cmd 按 ANSI 解析 .bat，中文注释在 `chcp 65001` 生效前就乱码并吞掉下一行 `set`。
+
+**验证：** `scripts/style_showcase.py --selftest` 72 行 0 失败；`scripts/verify.py` 全绿（含新增「展示台覆盖」步骤）；`tests/test_showcase_coverage.py` 通过；暗色/亮色/搜索过滤/状态矩阵/各分区逐屏截图核对，横向溢出消除。
+
+**涉及文件：** `scripts/style_showcase.py`、`scripts/check_showcase.py`（新）、`scripts/style_showcase.bat`（新）、`scripts/verify.py`、`scripts/README.md`、`tests/test_showcase_coverage.py`（新）、`docs/基础速查/打包控件功能使用说明.md`、`docs/项目概述.md`、`scripts/audit_registry.json`、`AGENTS.md`
+
 ---
 
 ## 2026-09-06
