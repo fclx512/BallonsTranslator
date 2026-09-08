@@ -331,6 +331,35 @@ class EffectsCardTest(unittest.TestCase):
                     f'{spec.filter_id}:{parameter.key} 上限超过 1',
                 )
 
+    def test_clear_effect_cards_hides_before_detaching(self):
+        """清理卡片必须先 hide() 再 setParent(None)。
+
+        卡片处于「已 show」状态（``isHidden()`` 为 False）时脱离父级会变成
+        顶层窗口，Qt 随后把它当独立窗口显示出来——画布框选时每次重建都会
+        闪出一排秒关的原生小窗（2026-09-08 实机复现）。
+        """
+        from utils.text_effects import StrokeEffect, TextEffectStack
+
+        self._set_stack(TextEffectStack(effects=(StrokeEffect(width=0.2),)))
+        card = self.panel.effect_cards[0]
+        self.assertFalse(card.isHidden())
+
+        hidden_at_detach = []
+        original_set_parent = card.setParent
+
+        def probe_set_parent(parent, *args):
+            if parent is None:
+                hidden_at_detach.append(card.isHidden())
+            return original_set_parent(parent, *args)
+
+        card.setParent = probe_set_parent
+        self.panel._clear_effect_cards()
+        self.assertEqual(
+            hidden_at_detach,
+            [True],
+            'setParent(None) 之前卡片必须已 hide()，否则会闪成原生小窗',
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

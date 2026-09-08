@@ -191,6 +191,44 @@ class TestBoxSelect(unittest.TestCase):
         self.assertEqual(self._selected_idxs(), [0, 1])
         self.assertFalse(self.c.isSelected())
 
+    def test_box_drag_defers_panel_sync_until_release(self):
+        """框选拖拽期间不刷面板，松手补一次。
+
+        每步 clearSelection + 逐块 setSelected 会连续触发 selectionChanged，
+        带特效的块会让特效卡整组反复重建（2026-09-08 帧率问题）。
+        """
+        self.canvas.hasFocus = lambda: True
+        emitted = []
+        self.canvas.incanvas_selection_changed.connect(
+            lambda: emitted.append(True)
+        )
+
+        start, end = (40, 40), (330, 170)
+        self._press(start)
+        emitted.clear()  # 按下时的原生清选走正常路径，不计入拖拽
+        self._move(((start[0] + end[0]) / 2, (start[1] + end[1]) / 2))
+        self._move(end)
+        self.assertTrue(self.canvas._box_select_panel_sync_paused)
+        self.assertEqual(emitted, [], '拖拽中不应刷面板')
+
+        self._release(end)
+        self.assertFalse(self.canvas._box_select_panel_sync_paused)
+        self.assertEqual(len(emitted), 1, '松手后应补一次面板同步')
+        self.assertEqual(self._selected_idxs(), [0, 1])
+
+    def test_click_still_syncs_panel_immediately(self):
+        """非拖拽的点选不走延迟路径，面板立即同步。"""
+        self.canvas.hasFocus = lambda: True
+        emitted = []
+        self.canvas.incanvas_selection_changed.connect(
+            lambda: emitted.append(True)
+        )
+
+        self._press((100, 100))
+        self._release((100, 100))
+        self.assertFalse(self.canvas._box_select_panel_sync_paused)
+        self.assertEqual(len(emitted), 1)
+
     def test_drag_starting_on_block_moves_it(self):
         # A press on a text block is the MOVE gesture (move cursor active) —
         # the block follows the mouse and no rubber band starts.

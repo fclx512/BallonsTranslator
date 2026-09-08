@@ -235,6 +235,10 @@ class TextEffectPanel(PanelArea):
                 if isinstance(card, TextFillEffectCard)
                 else self.cards_layout
             ).removeWidget(card)
+            # 先 hide() 再脱离父级：处于已显示状态的卡片一旦 setParent(None)
+            # 就成了顶层窗口，Qt 随后会把它当独立窗口 show 出来——画布框选
+            # 时每次重建都会闪出一排秒关的原生小窗。
+            card.hide()
             card.setParent(None)
             card.deleteLater()
         self.effect_cards = []

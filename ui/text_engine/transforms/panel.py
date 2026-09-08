@@ -1144,6 +1144,9 @@ class TextTransformPanel(PanelArea):
     def _clear_transform_panels(self):
         for panel in self.transform_panels:
             self.transform_rows_layout.removeWidget(panel)
+            # 与效果卡同理：可见面板直接 setParent(None) 会变成顶层窗口，
+            # Qt 随后把它当独立窗口 show 出来（浮层开着时重建即闪原生小窗）。
+            panel.hide()
             panel.setParent(None)
             panel.deleteLater()
         self.transform_panels = []

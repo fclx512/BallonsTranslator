@@ -445,6 +445,9 @@ class Canvas(QGraphicsScene):
         self.rubber_band.hide()
         self.rubber_band_origin = None
         self.rubber_band_dragged = False  # left-drag box select moved past the click threshold
+        # 框选拖拽期间暂停面板同步：每步 clearSelection + 逐块 setSelected 会连续
+        # 触发 selectionChanged，带特效的块会让特效卡整组反复重建，拖垮帧率。
+        self._box_select_panel_sync_paused = False
 
         self.draw_undo_stack = QUndoStack(self)
         self.text_undo_stack = QUndoStack(self)
@@ -944,7 +947,11 @@ class Canvas(QGraphicsScene):
             blk_item = self.txtblkShapeControl.blk_item
             if blk_item is not None and blk_item.isEditing():
                 blk_item.endEdit()
-        if self.hasFocus() and not self.block_selection_signal:
+        if (
+            self.hasFocus()
+            and not self.block_selection_signal
+            and not self._box_select_panel_sync_paused
+        ):
             self.incanvas_selection_changed.emit()
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
@@ -1085,6 +1092,7 @@ class Canvas(QGraphicsScene):
                     | Qt.KeyboardModifier.ShiftModifier
                 )
             )
+            self._box_select_panel_sync_paused = True
             self.apply_box_selection(rect, additive=additive)
             return  # the box select owns the gesture — never forward to items
 
@@ -1491,6 +1499,7 @@ class Canvas(QGraphicsScene):
         self.clear_text_transform_controls()
         self.mid_btn_pressed = False
         self.search_widget.reInitialize()
+        self._box_select_panel_sync_paused = False
 
         self.clearSelection()
         self.setProjSaveState(False)
@@ -1585,6 +1594,11 @@ class Canvas(QGraphicsScene):
             self.rubber_band.hide()
             self.rubber_band_origin = None
         self.rubber_band_dragged = False
+        if self._box_select_panel_sync_paused:
+            # 拖拽期间被压住的面板同步在这里补一次（见 on_selection_changed）
+            self._box_select_panel_sync_paused = False
+            if self.hasFocus() and not self.block_selection_signal:
+                self.incanvas_selection_changed.emit()
 
     # ── Left-drag box select (text blocks) ────────────────────
 

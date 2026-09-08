@@ -53,6 +53,22 @@
 
 **涉及文件：** `scripts/style_showcase.py`、`scripts/check_showcase.py`（新）、`scripts/style_showcase.bat`（新）、`scripts/verify.py`、`scripts/README.md`、`tests/test_showcase_coverage.py`（新）、`docs/基础速查/打包控件功能使用说明.md`、`docs/项目概述.md`、`scripts/audit_registry.json`、`AGENTS.md`
 
+### 效果块框选：闪原生小窗 + 掉帧两项修复
+
+**问题/需求：** 用户报告：文本框带特效时，画布左键拖拽多选扫过该块会不断闪出秒关闭的 Win 原生小窗（补充：不出现在任务栏，形态像设置面板）；修复后弹窗消失，但带样式的块框选仍明显掉帧（无特效的块选很多个都不卡）。两项均已实机验收通过。
+
+**改动要点：**
+
+- **闪窗根因**：`ui/text_engine/effects/panel.py::TextEffectPanel._clear_effect_cards` 对**处于显示状态**的卡片直接 `setParent(None)`——Qt 会把可见控件变成顶层窗口并 show 出来，直到随后的 `deleteLater()` 才销毁，于是框选每步重建卡片都闪一排原生小窗。修法=先 `hide()` 再摘父级再 `deleteLater()`；`ui/text_engine/transforms/panel.py::TextTransformPanel._clear_transform_panels` 同款隐患一并修（它未暴露是因为浮层常关着，`isVisible()` 为 False）。
+- **掉帧根因**：`ui/canvas.py::Canvas.apply_box_selection` 每步 `clearSelection` + 全量重选 → 一步 2–4 次 `selectionChanged` → `ui/text_panel.py::FontFormatPanel.set_textblk_item` → 效果卡整组重建（5 张卡约 30 个控件，含按钮菜单与渐变编辑器）。真实工程 40 步扫掠实测：无特效 10.5→4.9 ms/步，带特效 22.9→5.4 ms/步；带特效块的 `paint` 仅 +0.4 ms/步，瓶颈在面板重建而非渲染。
+- **修复**：新增 `ui/canvas.py::Canvas._box_select_panel_sync_paused`，拖拽期间在 `ui/canvas.py::Canvas.on_selection_changed` 压住 `incanvas_selection_changed`，松手在 `ui/canvas.py::Canvas.hide_rubber_band` 补发一次，`ui/canvas.py::Canvas.updateCanvas` 复位防卡死；单击选中仍即时同步。
+- **护网**：`tests/test_text_effects_cards.py::test_clear_effect_cards_hides_before_detaching`（打桩 `setParent` 断言摘父级时已隐藏）；`tests/test_box_select.py` 两条（拖拽期间不发信号 + 松手补发一次、单击仍即时）。
+- 两项均记入 `docs/基础速查/经验教训.md` §3.4/§3.5。
+
+**验证：** `scripts/verify.py` 全绿；pytest 661 passed / 1 skipped。
+
+**涉及文件：** `ui/canvas.py`、`ui/text_engine/effects/panel.py`、`ui/text_engine/transforms/panel.py`、`tests/test_box_select.py`、`tests/test_text_effects_cards.py`、`docs/基础速查/经验教训.md`、`docs/daily_log.md`
+
 ---
 
 ## 2026-09-06
