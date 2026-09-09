@@ -8,6 +8,7 @@ from qtpy.QtGui import (
     QCursor,
     QHideEvent,
     QKeyEvent,
+    QKeySequence,
     QNativeGestureEvent,
     QPainter,
     QPainterPath,
@@ -226,15 +227,15 @@ class CustomGV(QGraphicsView):
             self.ctrl_pressed = True
 
         modifiers = e.modifiers()
-        if modifiers == Qt.KeyboardModifier.ControlModifier:
-            if key == QKEY.Key_V:
-                if self.canvas.handle_ctrlv():
-                    e.accept()
-                    return
-            if key == QKEY.Key_C:
-                if self.canvas.handle_ctrlc():
-                    e.accept()
-                    return
+        # 用标准键位匹配，兼容非英文键盘布局与 Ctrl+Insert 等别名（上游 a86ebb1）。
+        if e.matches(QKeySequence.StandardKey.Paste):
+            if self.canvas.handle_ctrlv():
+                e.accept()
+                return
+        elif e.matches(QKeySequence.StandardKey.Copy):
+            if self.canvas.handle_ctrlc():
+                e.accept()
+                return
 
         elif (
             modifiers & Qt.KeyboardModifier.ControlModifier

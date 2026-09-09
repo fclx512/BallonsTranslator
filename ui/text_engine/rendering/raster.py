@@ -67,6 +67,8 @@ def plan_effect_raster(
     0.5
     >>> plan_effect_raster(10000, 10000, 8).mode
     'tiles'
+    >>> plan_effect_raster(10000, 10000, 0.5).tier
+    0.5
     """
     width = max(0.0, float(width))
     height = max(0.0, float(height))
@@ -96,9 +98,16 @@ def plan_effect_raster(
     tile_edge = min(
         EFFECT_TILE_MAX_EDGE,
         EFFECT_CACHE_MAX_DIMENSION,
-        int(math.sqrt(EFFECT_CACHE_MAX_PIXELS)),
+        # 给小数坐标下向外取整留 1 像素余量：否则满瓦片正好卡在面积上限，
+        # 任一轴 ceil() 就会让分配直接失败、效果整块消失（上游 9b34135）。
+        int(math.sqrt(EFFECT_CACHE_MAX_PIXELS)) - 1,
     )
-    return EffectRasterPlan('tiles', 1.0, 0, 0, tile_edge)
+    tile_tier = (
+        1.0
+        if requested_scale >= 1.0
+        else (0.5 if requested_scale >= 0.5 else 0.25)
+    )
+    return EffectRasterPlan('tiles', tile_tier, 0, 0, tile_edge)
 
 
 def quality_raster_request(requested_scale: float) -> float:

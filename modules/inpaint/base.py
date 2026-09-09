@@ -382,13 +382,14 @@ if torch is not None:
                 self.inpaint_size if max(img.shape[0:2]) > self.inpaint_size else None
             )
             # high resolution input could produce cloudy artifacts
-            img = resize_keepasp(img, new_shape, stride=64)
-            mask = resize_keepasp(mask, new_shape, stride=64)
+            img = resize_keepasp(img, new_shape, stride=None)
+            mask = resize_keepasp(mask, new_shape, stride=None)
 
             im_h, im_w = img.shape[:2]
-            longer = max(im_h, im_w)
-            pad_bottom = longer - im_h if im_h < longer else 0
-            pad_right = longer - im_w if im_w < longer else 0
+            # 对齐靠补边而不是重采样：保住网点与遮罩边缘（上游 b36210b）。
+            longer = (max(im_h, im_w) + 63) // 64 * 64
+            pad_bottom = longer - im_h
+            pad_right = longer - im_w
             mask = cv2.copyMakeBorder(
                 mask, 0, pad_bottom, 0, pad_right, cv2.BORDER_REFLECT
             )

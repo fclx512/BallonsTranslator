@@ -1,6 +1,6 @@
 from typing import Callable
 
-from qtpy.QtCore import Qt, Signal
+from qtpy.QtCore import QLocale, Qt, Signal
 from qtpy.QtGui import QDoubleValidator
 from qtpy.QtWidgets import (
     QCheckBox,
@@ -80,6 +80,13 @@ class ParamLineEditor(ConfigLineEdit):
 
         if force_digital:
             validator = QDoubleValidator()
+            # 小数点始终按 C locale 解析，避免非英文 locale 下把 "0.5" 判非法
+            # （上游 73741cf）。
+            validator.setLocale(QLocale.c())
+            notation = getattr(
+                QDoubleValidator, "Notation", QDoubleValidator
+            )
+            validator.setNotation(notation.StandardNotation)
             self.setValidator(validator)
 
     def on_text_changed(self):

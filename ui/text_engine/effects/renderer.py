@@ -3673,30 +3673,30 @@ class TextEffectRenderer:
                     visible.width(), visible.height(), plan.tier
                 )
                 if (
-                    staging_plan.mode != 'full'
-                    or staging_plan.tier != plan.tier
+                    staging_plan.mode == 'full'
+                    and staging_plan.tier == plan.tier
                 ):
-                    raise EffectRasterAllocationError(
-                        'visible effect staging surface exceeds policy'
+                    staging_pixmap = self._new_effect_pixmap(
+                        plan.tier, visible
                     )
-                staging_pixmap = self._new_effect_pixmap(
-                    plan.tier, visible
-                )
-                staging_painter = QPainter(staging_pixmap)
-                if not staging_painter.isActive():
-                    raise EffectRasterAllocationError(
-                        'unable to begin visible effect staging painter'
+                    staging_painter = QPainter(staging_pixmap)
+                    if not staging_painter.isActive():
+                        raise EffectRasterAllocationError(
+                            'unable to begin visible effect staging painter'
+                        )
+                    self._prepare_effect_surface_painter(
+                        staging_painter, plan.tier
                     )
-                self._prepare_effect_surface_painter(
-                    staging_painter, plan.tier
-                )
-                staging_painter.translate(-visible.topLeft())
-                # Each core is a complete surface region. Source-copying it
-                # preserves the premultiplied pixels produced by every tile.
-                staging_painter.setCompositionMode(
-                    QPainter.CompositionMode.CompositionMode_Source
-                )
-                tile_painter = staging_painter
+                    staging_painter.translate(-visible.topLeft())
+                    # Each core is a complete surface region. Source-copying it
+                    # preserves the premultiplied pixels produced by every tile.
+                    staging_painter.setCompositionMode(
+                        QPainter.CompositionMode.CompositionMode_Source
+                    )
+                    tile_painter = staging_painter
+                # 视图过大时不做整块 staging，逐瓦片裁剪直接绘制：整块 staging
+                # 一旦超光栅策略，大窗口 / 大半径下的效果会整块静默消失
+                # （上游 e88c655「keep oversized text effects visible」）。
             tile_painter.setRenderHint(
                 QPainter.RenderHint.SmoothPixmapTransform
             )
