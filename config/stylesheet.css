@@ -1478,6 +1478,38 @@ DrawToolCheckBox#DrawAiTool::indicator:checked {
     image: url(icons/drawingtools_ai.svg);
 }
 
+/* 修复面板按钮（ui/drawingpanel.py）：全局 QPushButton 无内边距，
+   中文两字按钮的 sizeHint 就等于文字宽，字会紧贴边框。 */
+DrawingPanel QPushButton {
+    padding: 0 12px;
+}
+
+/* AI 修图页的比例支持表（ui/drawingpanel.py::CropControls） */
+QFrame#InpaintAspectTable {
+    border: 1px solid @borderColor;
+    border-radius: 5px;
+    background-color: @emptyContentBackgroundColor;
+}
+
+QLabel#InpaintAspectTableHeader {
+    font-size: 11px;
+    font-weight: bold;
+    color: @disabledForegroundColor;
+    background: transparent;
+}
+
+QLabel#InpaintAspectTableCell {
+    font-size: 11px;
+    color: @qwidgetForegroundColor;
+    background: transparent;
+}
+
+QLabel#InpaintAspectTableNote {
+    font-size: 11px;
+    color: @disabledForegroundColor;
+    background: transparent;
+}
+
 GlobalSearchWidget {
     border-color: @borderColor;
     border-style: solid;

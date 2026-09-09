@@ -323,9 +323,19 @@ class Slider(QSlider):
         )
         return length - self.handle.width()
 
-    def _adjustHandlePos(self):
+    def _value_to_position_ratio(self) -> float:
+        """值 → 轨道位置比例（0~1）。子类重载可做非线性排布。"""
         total = max(self.maximum() - self.minimum(), 1)
-        delta = int((self.value() - self.minimum()) / total * self.grooveLength)
+        return (self.value() - self.minimum()) / total
+
+    def _position_ratio_to_value(self, ratio: float) -> int:
+        """轨道位置比例（0~1）→ 值。子类重载可做非线性排布。"""
+        return int(
+            ratio * (self.maximum() - self.minimum()) + self.minimum()
+        )
+
+    def _adjustHandlePos(self):
+        delta = int(self._value_to_position_ratio() * self.grooveLength)
 
         if self.orientation() == Qt.Orientation.Vertical:
             self.handle.move(0, delta)
@@ -336,7 +346,7 @@ class Slider(QSlider):
         pd = self.handle.width() / 2
         gs = max(self.grooveLength, 1)
         v = pos.x() if self.orientation() == Qt.Orientation.Horizontal else pos.y()
-        return int((v - pd) / gs * (self.maximum() - self.minimum()) + self.minimum())
+        return self._position_ratio_to_value((v - pd) / gs)
 
     def paintEvent(self, e):
         painter = QPainter(self)
@@ -357,11 +367,7 @@ class Slider(QSlider):
             return
 
         painter.setBrush(themeColor())
-        aw = (
-            (self.value() - self.minimum())
-            / (self.maximum() - self.minimum())
-            * (w - r * 2)
-        )
+        aw = self._value_to_position_ratio() * (w - r * 2)
         painter.drawRoundedRect(QRectF(r, r - 2, aw, 4), 2, 2)
 
     def _drawVerticalGroove(self, painter: QPainter):
@@ -372,11 +378,7 @@ class Slider(QSlider):
             return
 
         painter.setBrush(themeColor())
-        ah = (
-            (self.value() - self.minimum())
-            / (self.maximum() - self.minimum())
-            * (h - r * 2)
-        )
+        ah = self._value_to_position_ratio() * (h - r * 2)
         painter.drawRoundedRect(QRectF(r - 2, r, 4, ah), 2, 2)
 
     def grooveColor(self):

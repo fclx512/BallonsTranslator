@@ -1940,15 +1940,16 @@ Run detection + OCR to populate text blocks.</source>
             <translation>清除你在裁剪框内绘制的所有遮罩。</translation>
         </message>
         <message>
-            <location filename="..\ui\drawingpanel.py" />
-            <source>Aspect ratios: 1:1 on every model. gpt-image-2 also supports 3:2 and 2:3. Other models also support 16:9, 9:16, 4:3 and 3:4.</source>
-            <translation>1:1: 正方形格式
-16:9: 宽屏横向格式（gpt-image-2不支持）
-9:16: 宽屏纵向格式（gpt-image-2不支持）
-4:3: 标准横向格式（gpt-image-2不支持）
-3:4: 标准纵向格式（gpt-image-2不支持）
-3:2: 横向格式（仅gpt-image-2支持）
-2:3: 纵向格式（仅gpt-image-2支持）</translation>
+            <source>Model</source>
+            <translation>模型</translation>
+        </message>
+        <message>
+            <source>Other models follow the Nano Banana set.</source>
+            <translation>其它模型按 Nano Banana 的比例集处理。</translation>
+        </message>
+        <message>
+            <source>Ratios</source>
+            <translation>支持比例</translation>
         </message>
     </context>
     <context>
@@ -1997,6 +1998,14 @@ Run detection + OCR to populate text blocks.</source>
             <location filename="..\ui\drawingpanel.py" />
             <source>Dilate</source>
             <translation>膨胀</translation>
+        </message>
+        <message>
+            <source>Image Model</source>
+            <translation>生图模型</translation>
+        </message>
+        <message>
+            <source>Model name</source>
+            <translation>模型名称</translation>
         </message>
     </context>
     <context>

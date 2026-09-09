@@ -2,6 +2,73 @@
 
 > 此文档用于跨 agent 同步当日改动。仅保留最近 3 天的记录，每次在对应日期中末尾写入日志。
 
+## 2026-09-09
+
+### 设置面板 LLM Profile 页改卡片式（A 方案·精简版）
+
+**问题/需求：** 用户反馈设置面板开始堆屎山：LLM 页加入在线修复后比上游麻烦、管线页杂项排布乱。调研发现上游 1.5.14 走的是相反方向——管线合并成一页、LLM Profile 独立成卡片列表页（能力徽章 + 折叠详情 + 声明式分节），而 fork 是「下拉框 + 一张常显大表单」，所以每加一种能力页面必然变长。本批只做 LLM 页，形态对齐上游。
+
+**改动要点：**
+
+- **新增 `ui/llm_profile_cards.py`**：`LLMProfileListWidget`（工具栏 + 卡片列表）/ `LLMProfileCardWidget`（摘要 + 折叠详情）/ `LLMProfileDetailsWidget`（通用参数 + 三个能力分节，每节一个 `ParamWidget`）/ `LLMProfileBadge`（点击切换 `vision_support` / `image_support`）。参数定义走 `PROFILE_COMMON_PARAM_DEFS` / `PROFILE_SECTION_PARAM_DEFS`（镜像上游同名常量），写回类型转换走 `PROFILE_FIELD_TYPES`。
+- **数据层不动**：`utils/profile_manager.py` 退为纯数据/服务层，保留 dict 模型、`model_profiles` JSON 字符串、name 作主键与全部消费者；不移植上游的 `LLMProfile` dataclass / SecretStore / id 主键。保存时机保持「增删 / 恢复内置 / Fetch 成功 / 离开页面才落盘」，避免敲键即触发 `module_manager` 重建参数面板。
+- **删死代码**：`ProfileManagerDialog`（约 629 行，全仓无实例化）、`ProfileManagerWidget`（被新页取代）、`save_profile` / `delete_profile`（无调用者）与随之失效的导入；网络辅助改名公开（`NetWorker` / `probe_connection` / `probe_model_list`）供新 UI 复用。
+- **接线**：`ui/configpanel.py` 换用 `LLMProfileListWidget`，注入 `_run_modal_dialog`（顺带修掉 profile 子对话框打开时 scrim 可点关整面板的旧问题）；`focusOnLLMProfile(name)` 现在会展开并滚动到对应卡片。
+- **资源**：从上游拷 `icons/text.svg`、`eye.svg`、`image.svg`、`llm_key_ok.svg`、`llm_key_missing.svg`（上游禁用态与激活态形状相同，故只取 5 个，颜色改由 `render_svg_pixmap(override_fill=…)` 按主题与模态强调色着色）；`config/stylesheet.css` 追加 `LLMProfile*` 规则。
+- **i18n**：删 `ProfileManagerDialog`（66 条）与 `ProfileManagerWidget`（69 条）两个 context，新增 `LLMProfileCardWidget`（58 条）/ `LLMProfileListWidget`（7 条）；中文译文复用 git 历史里旧 context 的既有术语并补齐余项，qm 重编。
+- **测试**：`tests/test_startup_imports.py` 改为实例化 `LLMProfileListWidget`；新增 `tests/test_llm_profile_cards.py`（9 例：卡片数 / 初始折叠 / 徽章门控分节 / 字段写回与类型转换 / 内置禁删 / `hideEvent` 发信号 / 新增唯一名；写盘被 patch 掉以免污染真实 `config.json`）。
+
+**涉及文件：** `ui/llm_profile_cards.py`（新）、`utils/profile_manager.py`、`ui/configpanel.py`、`config/stylesheet.css`、`icons/text.svg` 等 5 个图标（新）、`translate/zh_CN.ts`、`translate/zh_CN.qm`、`tests/test_startup_imports.py`、`tests/test_llm_profile_cards.py`（新）、`AGENTS.md`、`docs/技术实现/设置面板概述.md`、`docs/基础速查/设置面板排版思路.md`
+
+### LLM 页模型切换对齐上游 + 上游 v1.5.13→v1.5.15 底层修复移植
+
+**问题/需求：** 用户审查卡片页后反馈「单供应商切模型体验不好，上游做得到位」。调研上游 v1.5.15 的机制：每个 profile 持久化一份模型清单（`PROVIDER_DEFAULTS` 预置供应商模型表），摘要行常驻模型下拉 + 增删按钮，底部模块栏还能一键切模型；上游**没有** Fetch Models。用户拍板：吸收上游的清单 + 下拉，保留 fork 的 Fetch Models 并升级为多选添加，**不维护固化的模型表**（清单只由抓取或手填产生）。同批按「底层性能/实现优先服从上游」的原则，把 v1.5.13→v1.5.15 的底层修复移植过来。
+
+**改动要点：**
+
+- **模型清单（无内置表）**：profile 增 `model_options` / `image_model_options` 两个字段（`utils/profile_manager.py::PROFILE_FIELDS`、`SAMPLE_PROFILES` 全空）；`utils/profile_manager.py::normalize_model_options` 在 `load_profiles` 时规整清单并把当前值补进列表，`utils/profile_manager.py::remember_model_option` 负责去重追加。存储格式与消费者（仍读 `profile["model"]`）不变。
+- **摘要行模型下拉**：新增 `ui/llm_profile_cards.py::_ModelSelector`（`ConfigComboBox` 拉伸模式 + `+` 手填 / `−` 删当前），文本模型常显、图像模型随 `image_support` 显隐；`model` / `image_model` 从详情参数里移除（不再有双入口），`_rebuild_details` 随之删除。切模型 / 增删是离散操作，立即落盘（`ui/module_manager.py::_on_profiles_changed` 只刷新类级选项，代价小）。
+- **Fetch Models 多选**：`utils/profile_manager.py::FilterableListDialog` 增 `multi_select`（`ExtendedSelection` + `selected_items`）；`ui/llm_profile_cards.py::_pick_model` 把选中项全部入清单、首个设为当前模型并落盘——网络只用于刷新清单，之后切模型完全离线。
+- **控件库**：`ui/custom_widget/combobox.py::ConfigComboBox` 增 `stretch` 参数（不做宽度分级锁定，交给布局横向拉伸）；`config/stylesheet.css` 补 `LLMProfileModelRow` / `LLMProfileFieldLabel` / `LLMProfileModelAddButton` / `LLMProfileModelRemoveButton` 规则。
+- **上游底层修复移植**：①效果栈瓦片——`ui/text_engine/rendering/raster.py::plan_effect_raster` 补取整余量（`-1`）与随缩放分层的 `tile_tier`，`ui/text_engine/effects/renderer.py::_draw_tiled_effects` 整块 staging 超光栅策略时不再抛错丢弃，改为逐瓦片裁剪直接绘制（大窗口 / 大描边半径下效果不再整块消失，上游 9b34135 + e88c655）；②LaMa 预处理改「补边对齐」而非重采样（`modules/inpaint/base.py`，上游 b36210b，保住网点与遮罩边缘）；③16-bit 灰度 PNG 读入取高字节（`utils/io_utils.py::imread`，上游 afad9f5）；④`ParamLineEditor` 的 `QDoubleValidator` 固定 C locale（`ui/module_parse_widgets.py`，上游 73741cf）；⑤Ctrl+C/V/X 改 `QKeySequence.StandardKey` 匹配（`ui/canvas.py`、`ui/text_engine/item.py`，上游 a86ebb1）；⑥水平排版单个空格软换行不再跳动（`ui/text_engine/horizontal_layout.py::_trailing_space_layout`，上游 595f6fd）。
+- **画笔粗细**：`ui/custom_widget/slider.py::Slider` 抽出 `_value_to_position_ratio` / `_position_ratio_to_value` 两个映射钩子（默认线性，groove 绘制与命中测试都走它）；`ui/drawingpanel.py::_BrushThicknessSlider` 重载为对数映射（小笔头不再挤在左端，数值仍是精确像素），`ui/drawingpanel.py::_create_thickness_control` 给两个画笔面板配 `NoArrowsSpinBox` 精确输入（双向同步，滑块程序化 setValue 也同步输入框）。
+- **未移植**：合成粗体（用户不感兴趣，此前已决定删除该特性）、上游 LLM 上下文/记忆/全页 OCR/PS Bridge/HayaiOCR/多语言 ts（依赖上游 `LLMProfile` 数据模型或方向相反）。
+- **测试**：`tests/test_llm_profile_cards.py` 扩到 18 例（清单只有当前值 / 下拉写回 / 手填追加 / 删当前选邻居 / Fetch 多选全入列 / 图像行随徽章显隐 / 数据层归一与对话框多选）；新增 `tests/test_image_io.py`（16-bit PNG）、`tests/test_effect_raster_policy.py`（瓦片余量 + tier 分层）、`tests/test_brush_thickness.py`（对数映射 + 精确输入框）。verify.py --full 全绿。
+
+**涉及文件：** `ui/llm_profile_cards.py`、`utils/profile_manager.py`、`ui/custom_widget/combobox.py`、`ui/custom_widget/slider.py`、`ui/drawingpanel.py`、`ui/text_engine/effects/renderer.py`、`ui/text_engine/rendering/raster.py`、`ui/text_engine/horizontal_layout.py`、`ui/text_engine/item.py`、`ui/canvas.py`、`ui/module_parse_widgets.py`、`modules/inpaint/base.py`、`utils/io_utils.py`、`config/stylesheet.css`、`translate/zh_CN.ts`、`translate/zh_CN.qm`、`tests/test_llm_profile_cards.py`、`tests/test_image_io.py`（新）、`tests/test_effect_raster_policy.py`（新）、`tests/test_brush_thickness.py`（新）、`docs/技术实现/设置面板概述.md`、`docs/基础速查/设置面板排版思路.md`
+
+### LLM 页与修复面板实机反馈五修
+
+**问题/需求：** 上一批落地后实机验收提出五处：①摘要行模型下拉横向拉满整行，看着空且怪；②主机地址 / API Key 埋在杂项参数里不够显眼，图像修复端口也应并到一处；③画笔粗细的精确输入框挤占了滑条，滑条太短；④AI 修图页的比例提示被横向裁掉，且长句不如表格；⑤生图模型需要可手动输入（中转站可用性检查常误报）。
+
+**改动要点：**
+
+- **模型下拉按内容自适应**：`ui/llm_profile_cards.py::_ModelSelector` 去掉 `stretch`，改 `ConfigComboBox(fix_size=False)` + `AdjustToContents`（受分级上限兜底），`+` / `−` 紧跟其右并留尾部空白。
+- **连接信息块**：新增 `ui/llm_profile_cards.py::_ConnectionBlock`（`CONNECTION_PARAM_KEYS` 定序 `api_host` / `api_key` / `image_base_url`），标签在上 + 整行加高输入框（`LINEEDIT_FIXHEIGHT`），容器带强调左边条（`LLMProfileConnectionBlock` QSS）；`image_base_url` 随 `image_support` 显隐（`set_section_visible("image", …)` 同步）。这三个字段从 `PROFILE_COMMON_PARAM_DEFS` / 图像分节移出，详情页改为「连接信息 + 生成参数 + 三能力分节」。
+- **画笔粗细滑条恢复原长**：`ui/drawingpanel.py::_create_thickness_control` 改为 `(slider, spinbox, row_layout)`，数值框（宽 56）放进标签列右端、标签可省略（`_ElidedToolNameLabel`），滑条独占其余宽度——实测 86px → 166px（与加精确输入前一致）。
+- **AI 修图页比例支持表 + 裁剪修复**：面板最小宽从 388px 降到 253px（可用约 326px）。三处根因：`CropControls` 把「裁剪模式」复选框和比例下拉挤在同一行（改为独立一行）；`QComboBox` 默认把**最长条目宽度**算进 `minimumSizeHint`，长 profile / 模型名把面板顶宽——新增 `ui/drawingpanel.py::_shrinkable_combo`（`AdjustToMinimumContentsLengthWithIcon` + `minimumContentsLength(0)`）处理面板内所有下拉；整句比例说明换成 `InpaintAspectTable` 紧凑表格（模型 / 支持比例两列 + 其它模型脚注），比例单元格 `setWordWrap(True)` 窄栏换行而非撑宽。
+- **生图模型栏**：`ui/drawingpanel.py::AIConfigPanel` 在 Profile 下新增可编辑下拉（清单取所选 profile 的 `image_model_options`，`activated` / `editingFinished` 才提交），`_commit_image_model` 写回该 profile 的 `image_model` 并记进清单（`save_all_profiles`）。跨页写同一 profile，故 `ui/llm_profile_cards.py::LLMProfileListWidget.showEvent` 在 `pcfg.module.model_profiles` 与上次落盘值不一致时重载，避免旧副本在 `hideEvent` 覆盖。
+- **i18n**：新增 `Connection` / `Generation` / `Model` / `Ratios` / `Other models follow the Nano Banana set.` / `Image Model` / `Model name` 七条（中文：连接信息 / 生成参数 / 模型 / 支持比例 / 其它模型按 Nano Banana 的比例集处理。/ 生图模型 / 模型名称），删掉旧整句比例说明的孤儿条目，qm 重编。
+- **测试**：`tests/test_llm_profile_cards.py` 扩到 23 例（模型下拉非拉伸且有上限 / 连接块承载 host+key / 连接块写回 / 图像端口随徽章显隐 / `showEvent` 重载外部改动）；`tests/test_brush_thickness.py` 补「数值框在标签列内、滑条独占其余宽度」断言；新增 `tests/test_ai_inpaint_panel.py`（6 例：模型清单 / 手输与点选写回 profile / 比例表内容 / 比例单元格换行 / 面板最小宽 ≤ 326）。
+
+**涉及文件：** `ui/llm_profile_cards.py`、`ui/drawingpanel.py`、`config/stylesheet.css`、`translate/zh_CN.ts`、`translate/zh_CN.qm`、`tests/test_llm_profile_cards.py`、`tests/test_brush_thickness.py`、`tests/test_ai_inpaint_panel.py`（新）、`docs/技术实现/设置面板概述.md`、`docs/基础速查/设置面板排版思路.md`
+
+### 修复面板实机反馈收尾：数值框去单位 + 按钮内边距 + 对齐普查
+
+**问题/需求：** 五修验收后用户反馈三点：①粗细数值框里的 `20 px` 被裁成 `20 p`，干脆去掉单位；②「修复 / 清除遮罩」按钮字紧贴边框；③顺带看看还有没有边距不合适或该对齐没对齐的地方。
+
+**改动要点：**
+
+- **数值框去单位**：`ui/drawingpanel.py::_create_thickness_control` 去掉 `setSuffix(" px")`（宽度 56 不变，够显示 4 位数）。
+- **按钮内边距**：stylesheet 新增 `DrawingPanel QPushButton { padding: 0 12px; }`——全局 `QPushButton` 无内边距，中文两字按钮的 sizeHint 就等于文字宽（实测 30px 宽装 28px 文字）。
+- **对齐普查**（实测离屏渲染 + 真实字号/译文逐控件量 x）：①内嵌体（画笔体 / 框选体 / `CropControls`）的布局 margins 归零，原来默认 9px 让这一组比上方字段整体右移；②粗细滑条行不再自设 `spacing(10)`，沿用父布局 14px，滑条起点与同栏下拉框同列（原来差 4px）；③`_shrinkable_combo` 统一锁高 `CONFIG_COMBOBOX_HEIGHT`（默认 29 vs 26 参差），修复工具下拉框（属设置页控件）在 `DrawingPanel` 构造时补锁一次；④框选页 `box_layout` 行距 8 → 14，与画笔 / AI 页同节奏。
+- **测试**：`tests/test_brush_thickness.py` 断言改为「无后缀」；`tests/test_ai_inpaint_panel.py` 补 2 例（滑条与下拉同列 / 面板按钮有内边距，含 `DrawingPanel` 类名一致性守卫）。
+
+**涉及文件：** `ui/drawingpanel.py`、`config/stylesheet.css`、`tests/test_brush_thickness.py`、`tests/test_ai_inpaint_panel.py`、`docs/基础速查/设置面板排版思路.md`
+
+---
+
+
 ## 2026-09-08
 
 ### 效果栈滤镜批收尾 + 实机验收反馈批（渲染错乱四修 / 描边卡退役 / 取色器换 fork 控件 / 行距类型并入轮廓行）

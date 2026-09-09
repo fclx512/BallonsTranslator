@@ -1,12 +1,32 @@
+from math import log
 import os
 import os.path as osp
 import cv2
 import numpy as np
-from qtpy.QtCore import QLineF, QPointF, QProcess, QRectF, QSizeF, Qt, Signal
-from qtpy.QtGui import QBrush, QColor, QCursor, QPainter, QPen, QPixmap
+from qtpy.QtCore import (
+    QLineF,
+    QPointF,
+    QProcess,
+    QRectF,
+    QSignalBlocker,
+    QSizeF,
+    Qt,
+    Signal,
+)
+from qtpy.QtGui import (
+    QBrush,
+    QColor,
+    QCursor,
+    QFontMetrics,
+    QPainter,
+    QPen,
+    QPixmap,
+)
 from qtpy.QtWidgets import (
     QBoxLayout,
     QCheckBox,
+    QComboBox,
+    QFrame,
     QGraphicsEllipseItem,
     QGraphicsView,
     QGridLayout,
@@ -30,7 +50,15 @@ from utils.shared import CONFIG_COMBOBOX_HEIGHT, CONFIG_COMBOBOX_SHORT
 from .canvas import Canvas
 from .configpanel import InpaintConfigPanel
 from .crop_rect_item import CropRectItem
-from .custom_widget import ComboBox, ConfigCheckBox, PaintQSlider, SeparatorWidget, Widget
+from .custom_widget import (
+    ComboBox,
+    ConfigCheckBox,
+    ConfigComboBox,
+    NoArrowsSpinBox,
+    PaintQSlider,
+    SeparatorWidget,
+    Widget,
+)
 from .custom_widget.notification import notification
 from .drawing_commands import InpaintUndoCommand, StrokeItemUndoCommand
 from .funcmaps import get_maskseg_method
@@ -51,6 +79,29 @@ TOOL_LABEL_WIDTH = 110
 # brush / box-select is used to mark masks into the LLM crop.
 AI_MASK_BRUSH = 0
 AI_MASK_BOX = 1
+
+
+class _BrushThicknessSlider(PaintQSlider):
+    """像素值保持精确，只在轨道上按对数间距排布——小笔头不再挤在左端。
+
+    上游 5acc4f4 / 2ecd5f7：数值仍是真实像素，映射只影响滑块位置。
+    """
+
+    def _value_to_position_ratio(self) -> float:
+        minimum = self.minimum()
+        maximum = self.maximum()
+        if minimum < 1 or maximum <= minimum:
+            return super()._value_to_position_ratio()
+        return log(self.value() / minimum) / log(maximum / minimum)
+
+    def _position_ratio_to_value(self, ratio: float) -> int:
+        minimum = self.minimum()
+        maximum = self.maximum()
+        if minimum < 1 or maximum <= minimum:
+            return super()._position_ratio_to_value(ratio)
+        ratio = min(max(ratio, 0.0), 1.0)
+        return round(minimum * (maximum / minimum) ** ratio)
+
 
 # Aspect ratios offered for the online-LLM inpaint crop tool. These are the
 # union of ratios Meshy's image-to-image endpoint supports across its models.
@@ -107,6 +158,87 @@ class ToolNameLabel(QLabel):
         self.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
 
 
+class _ElidedToolNameLabel(ToolNameLabel):
+    """字段标签：列宽不足时右侧省略并挂 tooltip（中文标签通常用不到）。"""
+
+    def __init__(self, text: str = "", parent=None) -> None:
+        super().__init__(None, text, parent)
+        self._full_text = text or ""
+        self.setToolTip(self._full_text)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._apply_elide()
+
+    def _apply_elide(self) -> None:
+        fm = QFontMetrics(self.font())
+        width = self.width()
+        if width > 0 and fm.horizontalAdvance(self._full_text) > width:
+            super().setText(
+                fm.elidedText(
+                    self._full_text, Qt.TextElideMode.ElideRight, width
+                )
+            )
+        else:
+            super().setText(self._full_text)
+
+
+# 精确像素输入框宽度：够显示最长的 4 位数值（1000），不再从滑条那里多拿空间。
+THICKNESS_SPIN_WIDTH = 56
+
+
+def _shrinkable_combo(combo):
+    """让下拉框能在窄面板里收缩，并统一高度。
+
+    QComboBox 默认把最长条目的宽度算进 minimumSizeHint——右栏只有 360px，
+    长 profile / 模型名会把整块面板顶宽而被裁掉。改按最小内容长度取尺寸后
+    最小宽只剩箭头区，实际宽度仍由布局拉伸决定。
+    高度锁到 ``CONFIG_COMBOBOX_HEIGHT``：不锁的话默认高度（29）比同栏其它
+    下拉框（26）高一截，同一列控件高度参差。
+    """
+    combo.setSizeAdjustPolicy(
+        QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon
+    )
+    combo.setMinimumContentsLength(0)
+    combo.setFixedHeight(CONFIG_COMBOBOX_HEIGHT)
+    return combo
+
+
+def _create_thickness_control(parent, label_text: str):
+    """滑块 + 精确像素输入框（双向同步）。
+
+    数值框放在标签列右端（标签放不下时省略），滑块独占其余宽度——这样加了
+    精确输入后滑条长度与之前一致，且滑条起点仍与下方控件对齐。
+    数值框不带单位后缀：右栏里 "20 px" 会被裁成 "20 p"，单位在标签里已隐含。
+    返回 ``(slider, spinbox, row_layout)``。
+    """
+    slider = _BrushThicknessSlider(parent=parent)
+    slider.setRange(MIN_PEN_SIZE, MAX_PEN_SIZE)
+    slider.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+    spinbox = NoArrowsSpinBox(parent)
+    spinbox.setRange(MIN_PEN_SIZE, MAX_PEN_SIZE)
+    spinbox.setValue(slider.value())
+    spinbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    spinbox.setKeyboardTracking(False)
+    spinbox.setFixedSize(THICKNESS_SPIN_WIDTH, 22)
+
+    label_cell = QWidget(parent)
+    label_cell.setFixedWidth(TOOL_LABEL_WIDTH)
+    cell_layout = QHBoxLayout(label_cell)
+    cell_layout.setContentsMargins(0, 0, 0, 0)
+    cell_layout.setSpacing(4)
+    cell_layout.addWidget(_ElidedToolNameLabel(label_text, label_cell), 1)
+    cell_layout.addWidget(spinbox)
+
+    row = QHBoxLayout()
+    row.setContentsMargins(0, 0, 0, 0)
+    # 间距不自设，沿用父布局的 14px——否则滑条起点会比同栏下拉框左移几像素。
+    row.addWidget(label_cell)
+    row.addWidget(slider, 1)
+    return slider, spinbox, row
+
+
 class CropControls(Widget):
     """Ratio-crop control row shared by the brush and box-select panels.
 
@@ -125,7 +257,7 @@ class CropControls(Widget):
         super().__init__(*args, **kwargs)
         self.llm_active = False
 
-        self.ratio_combo = ComboBox(self)
+        self.ratio_combo = _shrinkable_combo(ComboBox(self))
         for label, _ratio in RATIO_OPTIONS:
             self.ratio_combo.addItem(label)
         self.ratio_combo.currentTextChanged.connect(self._on_ratio_changed)
@@ -142,29 +274,79 @@ class CropControls(Widget):
         row = QHBoxLayout()
         row.addWidget(ToolNameLabel(TOOL_LABEL_WIDTH, self.tr("Crop Ratio")))
         row.addWidget(self.ratio_combo, 1)
-        row.addWidget(self.mode_check)
+
+        mode_row = QHBoxLayout()
+        mode_row.addWidget(self.mode_check)
+        mode_row.addStretch()
 
         button_row = QHBoxLayout()
         button_row.addWidget(self.inpaint_btn)
         button_row.addWidget(self.clear_mask_btn)
+        button_row.addStretch()
 
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        # 内嵌体不缩进：默认布局边距会让这一组比上方字段整体右移 9px。
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(row)
+        layout.addLayout(mode_row)
         layout.addLayout(button_row)
         # Per-model aspect-ratio support reference, shown alongside the crop
-        # controls for the online image models (Meshy family) that the ratio-crop
-        # tool talks to. Lives on the shared CropControls so it appears in both
-        # the brush (InpaintPanel) and box-select (RectPanel) panels.
-        self.aspect_note = QLabel(
-            self.tr("Aspect ratios: 1:1 on every model. gpt-image-2 also supports 3:2 and 2:3. Other models also support 16:9, 9:16, 4:3 and 3:4.")
-        )
-        self.aspect_note.setWordWrap(True)
-        self.aspect_note.setObjectName("InpaintAspectNote")
-        layout.addWidget(self.aspect_note)
+        # controls for the online image models the ratio-crop tool talks to.
+        # 紧凑表格代替整句说明：窄面板（360px 右栏）里长句换行会被裁掉。
+        layout.addWidget(self._build_aspect_table())
         layout.setSpacing(14)
 
         self._update_btn_visibility()
+
+    def _build_aspect_table(self) -> QWidget:
+        table = QFrame(self)
+        table.setObjectName("InpaintAspectTable")
+        table_layout = QVBoxLayout(table)
+        table_layout.setContentsMargins(8, 7, 8, 8)
+        table_layout.setSpacing(4)
+        grid = QGridLayout()
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(8)
+        grid.setVerticalSpacing(3)
+        grid.addWidget(self._aspect_cell(self.tr("Model"), header=True), 0, 0)
+        grid.addWidget(
+            self._aspect_cell(self.tr("Ratios"), header=True), 0, 1
+        )
+        for i, (model, ratios) in enumerate(
+            (
+                ("gpt-image-2", "1:1 · 3:2 · 2:3"),
+                ("Nano Banana", "1:1 · 16:9 · 9:16 · 4:3 · 3:4"),
+            ),
+            start=1,
+        ):
+            grid.addWidget(self._aspect_cell(model), i, 0)
+            grid.addWidget(self._aspect_cell(ratios, wrap=True), i, 1)
+        grid.setColumnStretch(1, 1)
+        table_layout.addLayout(grid)
+        footnote = QLabel(
+            self.tr("Other models follow the Nano Banana set."), table
+        )
+        footnote.setObjectName("InpaintAspectTableNote")
+        footnote.setWordWrap(True)
+        table_layout.addWidget(footnote)
+        return table
+
+    @staticmethod
+    def _aspect_cell(
+        text: str, header: bool = False, wrap: bool = False
+    ) -> QLabel:
+        label = QLabel(text)
+        label.setObjectName(
+            "InpaintAspectTableHeader" if header else "InpaintAspectTableCell"
+        )
+        if wrap:
+            # 换行而不是撑宽面板：窄右栏里长比例串会绕到第二行。
+            label.setWordWrap(True)
+            label.setSizePolicy(
+                QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
+            )
+        return label
 
     # ── public API ──
 
@@ -212,19 +394,16 @@ class InpaintPanel(Widget):
     def __init__(self, inpainter_panel: InpaintConfigPanel, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        self.thicknessSlider = PaintQSlider()
-        self.thicknessSlider.setRange(MIN_PEN_SIZE, MAX_PEN_SIZE)
+        (
+            self.thicknessSlider,
+            self.thicknessSpinBox,
+            thickness_layout,
+        ) = _create_thickness_control(self, self.tr("Thickness"))
         self.thicknessSlider.valueChanged.connect(self.on_thickness_changed)
-        self.thicknessSlider.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-
-        thickness_layout = QHBoxLayout()
-        thickness_label = ToolNameLabel(TOOL_LABEL_WIDTH, self.tr("Thickness"))
-        thickness_layout.addWidget(thickness_label)
-        thickness_layout.addWidget(self.thicknessSlider)
-        thickness_layout.setSpacing(10)
+        self.thicknessSpinBox.valueChanged.connect(self.on_thickness_changed)
 
         shape_label = ToolNameLabel(TOOL_LABEL_WIDTH, self.tr("Shape"))
-        self.shapeCombobox = ComboBox(self)
+        self.shapeCombobox = _shrinkable_combo(ComboBox(self))
         self.shapeCombobox.addItems(
             [
                 self.tr("Circle"),
@@ -244,6 +423,7 @@ class InpaintPanel(Widget):
         self.brush_widget = Widget()
         brush_layout = QVBoxLayout(self.brush_widget)
         brush_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        brush_layout.setContentsMargins(0, 0, 0, 0)
         brush_layout.addLayout(thickness_layout)
         brush_layout.addLayout(shape_layout)
         brush_layout.setSpacing(14)
@@ -257,9 +437,16 @@ class InpaintPanel(Widget):
 
     # ── brush state ──
 
-    def on_thickness_changed(self):
+    def on_thickness_changed(self, value: int) -> None:
+        if self.sender() is self.thicknessSpinBox:
+            self.thicknessSlider.setValue(value)
+            self.thicknessChanged.emit(value)
+            return
+        # 滑块（含程序化 setValue）同步输入框；只有用户手势 / 滑块持有焦点才发信号。
+        with QSignalBlocker(self.thicknessSpinBox):
+            self.thicknessSpinBox.setValue(value)
         if self.thicknessSlider.hasFocus():
-            self.thicknessChanged.emit(self.thicknessSlider.value())
+            self.thicknessChanged.emit(value)
 
     def showEvent(self, e) -> None:
         self.inpaint_layout.addWidget(self.inpainter_panel.module_combobox)
@@ -321,9 +508,11 @@ class RectPanel(Widget):
         self.box_select_widget = Widget()
         box_layout = QVBoxLayout(self.box_select_widget)
         box_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        box_layout.setContentsMargins(0, 0, 0, 0)
         box_layout.addLayout(glayout)
         box_layout.addLayout(self.btnlayout)
-        box_layout.setSpacing(8)
+        # 与画笔 / AI 面板保持同一竖向节奏（原来 8，切工具时行距会突然变紧）。
+        box_layout.setSpacing(14)
 
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
@@ -391,17 +580,32 @@ class AIConfigPanel(Widget):
 
         # ── LLM profile selector ──
         profile_label = ToolNameLabel(TOOL_LABEL_WIDTH, self.tr("Profile"))
-        self.profile_combo = ComboBox(self)
-        self.profile_combo.setFixedHeight(CONFIG_COMBOBOX_HEIGHT)
+        self.profile_combo = _shrinkable_combo(ComboBox(self))
         self.profile_combo.currentTextChanged.connect(self._on_profile_changed)
         profile_layout = QHBoxLayout()
         profile_layout.addWidget(profile_label)
         profile_layout.addWidget(self.profile_combo, 1)
 
+        # ── Image model (editable: 中转站的模型可用性检查常误报，需手填) ──
+        model_label = ToolNameLabel(TOOL_LABEL_WIDTH, self.tr("Image Model"))
+        self.image_model_combo = _shrinkable_combo(
+            ConfigComboBox(stretch=True)
+        )
+        self.image_model_combo.setEditable(True)
+        self.image_model_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self.image_model_combo.lineEdit().setPlaceholderText(self.tr("Model name"))
+        self.image_model_combo.activated.connect(self._on_image_model_picked)
+        self.image_model_combo.lineEdit().editingFinished.connect(
+            self._commit_image_model
+        )
+        self._syncing_image_model = False
+        model_layout = QHBoxLayout()
+        model_layout.addWidget(model_label)
+        model_layout.addWidget(self.image_model_combo, 1)
+
         # ── Brush | Box conflict toggle ──
         mask_label = ToolNameLabel(TOOL_LABEL_WIDTH, self.tr("Mask"))
-        self.mask_combo = ComboBox(self)
-        self.mask_combo.setFixedHeight(CONFIG_COMBOBOX_HEIGHT)
+        self.mask_combo = _shrinkable_combo(ComboBox(self))
         self.mask_combo.addItems([self.tr("Brush"), self.tr("Box")])
         self.mask_combo.currentIndexChanged.connect(self._on_mask_mode_changed)
         mask_layout = QHBoxLayout()
@@ -409,19 +613,16 @@ class AIConfigPanel(Widget):
         mask_layout.addWidget(self.mask_combo, 1)
 
         # ── Brush settings ──
-        thickness_label = ToolNameLabel(TOOL_LABEL_WIDTH, self.tr("Thickness"))
-        self.thicknessSlider = PaintQSlider()
-        self.thicknessSlider.setRange(MIN_PEN_SIZE, MAX_PEN_SIZE)
+        (
+            self.thicknessSlider,
+            self.thicknessSpinBox,
+            thickness_layout,
+        ) = _create_thickness_control(self, self.tr("Thickness"))
         self.thicknessSlider.valueChanged.connect(self.on_thickness_changed)
-        self.thicknessSlider.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        thickness_layout = QHBoxLayout()
-        thickness_layout.addWidget(thickness_label)
-        thickness_layout.addWidget(self.thicknessSlider)
-        thickness_layout.setSpacing(10)
+        self.thicknessSpinBox.valueChanged.connect(self.on_thickness_changed)
 
         shape_label = ToolNameLabel(TOOL_LABEL_WIDTH, self.tr("Shape"))
-        self.shapeCombobox = ComboBox(self)
-        self.shapeCombobox.setFixedHeight(CONFIG_COMBOBOX_HEIGHT)
+        self.shapeCombobox = _shrinkable_combo(ComboBox(self))
         self.shapeCombobox.addItems([self.tr("Circle"), self.tr("Rectangle")])
         self.shapeChanged = self.shapeCombobox.currentIndexChanged
         shape_layout = QHBoxLayout()
@@ -431,6 +632,7 @@ class AIConfigPanel(Widget):
         self.brush_widget = Widget()
         brush_layout = QVBoxLayout(self.brush_widget)
         brush_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        brush_layout.setContentsMargins(0, 0, 0, 0)
         brush_layout.addLayout(thickness_layout)
         brush_layout.addLayout(shape_layout)
         brush_layout.setSpacing(14)
@@ -447,6 +649,7 @@ class AIConfigPanel(Widget):
         self.box_widget = Widget()
         box_layout = QVBoxLayout(self.box_widget)
         box_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        box_layout.setContentsMargins(0, 0, 0, 0)
         box_layout.addLayout(dilate_layout)
         box_layout.setSpacing(14)
 
@@ -462,6 +665,7 @@ class AIConfigPanel(Widget):
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         layout.addLayout(profile_layout)
+        layout.addLayout(model_layout)
         layout.addLayout(mask_layout)
         layout.addWidget(self.brush_widget)
         layout.addWidget(self.box_widget)
@@ -507,6 +711,66 @@ class AIConfigPanel(Widget):
         if current and current in names:
             self.profile_combo.setCurrentText(current)
         self.profile_combo.blockSignals(False)
+        self._refresh_image_model_options()
+
+    def _refresh_image_model_options(self):
+        """把所选 profile 的生图模型清单灌进可编辑下拉（当前值一定在列）。"""
+        from utils.profile_manager import find_profile
+
+        profile = find_profile(self.profile()) or {}
+        options = [
+            str(option)
+            for option in (profile.get("image_model_options") or [])
+            if str(option)
+        ]
+        current = str(profile.get("image_model") or "")
+        if current and current not in options:
+            options.append(current)
+        self._syncing_image_model = True
+        try:
+            self.image_model_combo.blockSignals(True)
+            self.image_model_combo.clear()
+            self.image_model_combo.addItems(options)
+            self.image_model_combo.setCurrentText(current)
+            self.image_model_combo.blockSignals(False)
+        finally:
+            self._syncing_image_model = False
+
+    def _on_image_model_picked(self, _index: int):
+        self._commit_image_model()
+
+    def _commit_image_model(self):
+        """写回所选 profile 的 image_model（手填的模型同时记进清单）。"""
+        if self._syncing_image_model:
+            return
+        name = self.profile()
+        text = self.image_model_combo.currentText().strip()
+        if not name:
+            return
+        from utils.profile_manager import (
+            load_profiles,
+            remember_model_option,
+            save_all_profiles,
+        )
+
+        profiles = load_profiles()
+        target = next((p for p in profiles if p.get("name") == name), None)
+        if target is None:
+            return
+        before = (
+            str(target.get("image_model") or ""),
+            list(target.get("image_model_options") or []),
+        )
+        if text:
+            remember_model_option(target, "image_model", text)
+        target["image_model"] = text
+        after = (
+            str(target.get("image_model") or ""),
+            list(target.get("image_model_options") or []),
+        )
+        if before == after:
+            return
+        save_all_profiles(profiles)
 
     def set_brush_config(self, width: int, shape: int):
         self.thicknessSlider.setValue(int(width))
@@ -539,15 +803,23 @@ class AIConfigPanel(Widget):
         if isinstance(llm, dict) and isinstance(llm.get("profile"), dict):
             llm["profile"]["value"] = name
             save_config()
+        self._refresh_image_model_options()
 
     def _on_mask_mode_changed(self, idx: int):
         pcfg.drawpanel.ai_mask_mode = AI_MASK_BOX if idx == AI_MASK_BOX else AI_MASK_BRUSH
         self._update_mask_body()
         self.maskModeChanged.emit(pcfg.drawpanel.ai_mask_mode)
 
-    def on_thickness_changed(self):
+    def on_thickness_changed(self, value: int) -> None:
+        if self.sender() is self.thicknessSpinBox:
+            self.thicknessSlider.setValue(value)
+            self.thicknessChanged.emit(value)
+            return
+        # 滑块（含程序化 setValue）同步输入框；只有用户手势 / 滑块持有焦点才发信号。
+        with QSignalBlocker(self.thicknessSpinBox):
+            self.thicknessSpinBox.setValue(value)
         if self.thicknessSlider.hasFocus():
-            self.thicknessChanged.emit(self.thicknessSlider.value())
+            self.thicknessChanged.emit(value)
 
     def _update_mask_body(self):
         body_visible = not self._crop_mode_active
@@ -580,6 +852,10 @@ class DrawingPanel(Widget):
         border_pen = QPen(INPAINT_BRUSH_COLOR, 3, Qt.PenStyle.DashLine)
         self.inpaint_mask_item: PixmapItem = PixmapItem(border_pen)
         self.scale_circle = QGraphicsEllipseItem()
+
+        # 修复工具下拉框属于设置页，靠 ConfigContent 的 QSS 定高；搬到修复面板
+        # 后不在 ConfigContent 里，不锁高会比同栏其它下拉框高 3px。
+        inpainter_panel.module_combobox.setFixedHeight(CONFIG_COMBOBOX_HEIGHT)
 
         canvas.finish_painting.connect(self.on_finish_painting)
         canvas.finish_erasing.connect(self.on_finish_erasing)
