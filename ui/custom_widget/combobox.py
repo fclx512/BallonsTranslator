@@ -4,6 +4,7 @@ from qtpy.QtCore import QEvent, QObject, QSize, Qt, Signal
 from qtpy.QtGui import QDoubleValidator, QMouseEvent, QPalette, QWheelEvent
 from qtpy.QtWidgets import (
     QComboBox,
+    QSizePolicy,
     QStyle,
     QStyleOptionComboBox,
     QStylePainter,
@@ -195,11 +196,14 @@ class ConfigComboBox(ComboBox):
         fix_size=True,
         scrollWidget: QWidget = None,
         options: List[str] = None,
+        stretch: bool = False,
         *args,
         **kwargs,
     ) -> None:
         super().__init__(scrollWidget, *args, **kwargs)
         self.fix_size = fix_size
+        # stretch=True 时不做宽度分级锁定，交给布局横向拉伸（整行下拉用）。
+        self.stretch = stretch
         self.adjustSize()
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         if options:
@@ -211,6 +215,11 @@ class ConfigComboBox(ComboBox):
 
     def adjustSize(self) -> None:
         super().adjustSize()
+        if self.stretch:
+            self.setSizePolicy(
+                QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+            )
+            return
         width = self.minimumSizeHint().width()
         if width < CONFIG_COMBOBOX_SHORT:
             width = CONFIG_COMBOBOX_SHORT

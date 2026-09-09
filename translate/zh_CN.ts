@@ -3609,331 +3609,6 @@ Configure modules in Settings, then click Refresh to scan for model files.</sour
         </message>
     </context>
     <context>
-        <name>ProfileManagerDialog</name>
-        <message>
-            <source>Image endpoint is required.</source>
-            <translation>图像端点必填。</translation>
-        </message>
-        <message>
-            <source>Enable image inpainting for this profile</source>
-            <translation>为此配置文件启用图像修复</translation>
-        </message>
-        <message>
-            <source>Image Endpoint:</source>
-            <translation>图像端点：</translation>
-        </message>
-        <message>
-            <source>Image Inpainting Settings (optional)</source>
-            <translation>图像修复设置（可选）</translation>
-        </message>
-        <message>
-            <source>Image Model:</source>
-            <translation>图像模型：</translation>
-        </message>
-        <message>
-            <source>Image Prompt:</source>
-            <translation>图像提示词：</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="359" />
-            <source>Manage API Profiles</source>
-            <translation>管理 API 配置文件</translation>
-        </message>
-        <message>
-            <source>Optional prompt sent with each inpainting request.</source>
-            <translation>每次修复请求附带的可选提示词。</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="447" />
-            <source>Saved Profiles:</source>
-            <translation>已保存的配置：</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="454" />
-            <source>+ Add</source>
-            <translation>+ 新增</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="456" />
-            <source>Delete</source>
-            <translation>删除</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="470" />
-            <source>Basic Settings</source>
-            <translation>基本设置</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="473" />
-            <source>e.g., My Custom API</source>
-            <translation>例如：我的自定义 API</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="481" />
-            <source>Fetch Models</source>
-            <translation>获取模型列表</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="484" />
-            <source>Vision support (for OCR)</source>
-            <translation>视觉支持（用于 OCR）</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="486" />
-            <source>Enable this for models that can process images. Vision-capable profiles will appear in the OCR model selector.</source>
-            <translation>启用此选项适用于能处理图像的模型。支持视觉功能的配置将出现在 OCR 模型选择器中。</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="496" />
-            <source>Unlimited (leave empty)</source>
-            <translation>无限制（留空）</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="497" />
-            <source>Name:</source>
-            <translation>名称：</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="498" />
-            <source>Host:</source>
-            <translation>地址：</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="499" />
-            <source>API Key:</source>
-            <translation>密钥：</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="500" />
-            <source>Model:</source>
-            <translation>模型：</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="502" />
-            <source>Temperature:</source>
-            <translation>温度：</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="503" />
-            <source>Top P:</source>
-            <translation>Top P：</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="579" />
-            <location filename="..\utils\profile_manager.py" line="504" />
-            <source>Max Tokens:</source>
-            <translation>最大 Token 数：</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="508" />
-            <source>Connection &amp; Rate Limiting</source>
-            <translation>连接与速率限制：</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="515" />
-            <source>0 = unlimited</source>
-            <translation>0 = 无限制</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="521" />
-            <source>Proxy:</source>
-            <translation>代理：</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="522" />
-            <source>Requests/min:</source>
-            <translation>请求数/分钟：</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="523" />
-            <source>Delay (s):</source>
-            <translation>延迟（秒）：</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="528" />
-            <source>Return JSON Schema</source>
-            <translation>返回 JSON Schema</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="531" />
-            <source>When enabled, the API response is validated against a strict JSON schema. Disable for broader compatibility with non-OpenAI providers.</source>
-            <translation>启用后，API 响应将使用严格的 JSON Schema 进行验证。如果与非 OpenAI 提供商兼容性有问题，请关闭此选项。</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="539" />
-            <source>Extra Translation Instructions (optional)</source>
-            <translation>额外翻译指令（可选）</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="549" />
-            <source>Optional custom instructions appended to the system prompt. Leave empty to use the default translation contract.</source>
-            <translation>附加到系统提示词的可选自定义指令。留空则使用默认翻译合约。</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="553" />
-            <source>Instructions:</source>
-            <translation>指令：</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="558" />
-            <source>OCR Settings (optional)</source>
-            <translation>OCR 设置（可选）</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="562" />
-            <source>OCR prompt with {language} placeholder.</source>
-            <translation>使用 {language} 占位符的 OCR 提示词。</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="567" />
-            <source>Optional system prompt for OCR.</source>
-            <translation>OCR 的可选系统提示词。</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="576" />
-            <source>OCR Prompt:</source>
-            <translation>OCR 提示词：</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="577" />
-            <source>OCR System Prompt:</source>
-            <translation>OCR 系统提示词：</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="578" />
-            <source>Detail Level:</source>
-            <translation>细节级别：</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="600" />
-            <source> (built-in)</source>
-            <translation>（内置）</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="641" />
-            <source>New Profile</source>
-            <translation>新建配置文件</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="692" />
-            <source>Warning</source>
-            <translation>警告</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="693" />
-            <source>Host and API key are required to fetch the model list.</source>
-            <translation>需要填写地址和密钥才能获取模型列表。</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="708" />
-            <source>Notice</source>
-            <translation>提示</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="708" />
-            <source>No models found.</source>
-            <translation>未找到模型。</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="713" />
-            <source>Select Model</source>
-            <translation>选择模型</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="732" />
-            <location filename="..\utils\profile_manager.py" line="724" />
-            <source>Error</source>
-            <translation>错误</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="725" />
-            <source>Failed to fetch model list. HTTP {code}</source>
-            <translation>获取模型列表失败。HTTP {code}</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="733" />
-            <source>Failed to fetch model list: {err}</source>
-            <translation>获取模型列表失败：{err}</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="743" />
-            <source>Confirm Delete</source>
-            <translation>确认删除</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" line="744" />
-            <source>Delete profile "{name}"?</source>
-            <translation>确认删除配置文件"{name}"？</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" />
-            <source>Reasoning Effort:</source>
-            <translation>思考强度：</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" />
-            <source>默认</source>
-            <translation>默认</translation>
-        </message>
-        <message>
-            <location filename="..\utils\profile_manager.py" />
-            <source>Override the model's reasoning/thinking effort.
-Leave as "default" to let the API decide.
-This maps automatically to each provider's native parameter
-(OpenAI reasoning_effort, Claude output_config.effort, etc.).</source>
-            <translation>覆写模型的推理/思考强度。
-选择"默认"则由 API 自行决定。
-该值会自动映射到各厂商的原生参数
-（OpenAI reasoning_effort、Claude output_config.effort 等）。</translation>
-        </message>
-        <message>
-            <source>Test</source>
-            <translation>测试连接</translation>
-        </message>
-        <message>
-            <source>Host is required.</source>
-            <translation>需要填写地址。</translation>
-        </message>
-        <message>
-            <source>A valid API key is required to test the connection.</source>
-            <translation>需要填写有效的 API 密钥才能测试连接。</translation>
-        </message>
-        <message>
-            <source>Connection Successful</source>
-            <translation>连接成功</translation>
-        </message>
-        <message>
-            <source>Connected! API is reachable and credentials are valid.</source>
-            <translation>连接成功！API 可达且凭据有效。</translation>
-        </message>
-        <message>
-            <source>Connection Failed</source>
-            <translation>连接失败</translation>
-        </message>
-        <message>
-            <source>HTTP {code}: {text}</source>
-            <translation>HTTP {code}：{text}</translation>
-        </message>
-        <message>
-            <source>Could not connect to {host}.
-Please check the URL and your network.</source>
-            <translation>无法连接到 {host}.
-请检查地址和网络。</translation>
-        </message>
-        <message>
-            <source>Connection timed out. Check the URL and network.</source>
-            <translation>连接超时。请检查地址和网络。</translation>
-        </message>
-        <message>
-            <source>Error: {err}</source>
-            <translation>错误：{err}</translation>
-        </message>
-        <message>
-            <source>Enable this for models that can generate/clean images. Image-capable profiles appear in the online inpainter's profile selector.</source>
-            <translation>启用此选项适用于能生成/清理图像的模型。支持图像功能的配置将出现在在线修复的配置选择器中。</translation>
-        </message>
-    </context>
-    <context>
         <name>RectPanel</name>
         <message>
             <location filename="..\ui\drawingpanel.py" line="217" />
@@ -5055,291 +4730,6 @@ in Settings → Mirror Config, then click Retry.</source>
             <location filename="..\ui\normalize_breaks_dialog.py" />
             <source>Delete directly</source>
             <translation>直接删除</translation>
-        </message>
-    </context>
-    <context>
-        <name>ProfileManagerWidget</name>
-        <message>
-            <source>Image endpoint is required.</source>
-            <translation>图像端点必填。</translation>
-        </message>
-        <message>
-            <source> (built-in)</source>
-            <translation>（内置）</translation>
-        </message>
-        <message>
-            <source>+ Add</source>
-            <translation>+ 新增</translation>
-        </message>
-        <message>
-            <source>A valid API key is required to test the connection.</source>
-            <translation>需要填写有效的 API 密钥才能测试连接。</translation>
-        </message>
-        <message>
-            <source>API Key:</source>
-            <translation>密钥：</translation>
-        </message>
-        <message>
-            <source>All built-in profiles already exist.</source>
-            <translation>所有内置配置文件已存在。</translation>
-        </message>
-        <message>
-            <source>Basic Settings</source>
-            <translation>基本设置</translation>
-        </message>
-        <message>
-            <source>Confirm Delete</source>
-            <translation>确认删除</translation>
-        </message>
-        <message>
-            <source>Connected! API is reachable and credentials are valid.</source>
-            <translation>连接成功！API 可达且凭据有效。</translation>
-        </message>
-        <message>
-            <source>Connection &amp; Rate Limiting</source>
-            <translation>连接与速率限制：</translation>
-        </message>
-        <message>
-            <source>Connection Failed</source>
-            <translation>连接失败</translation>
-        </message>
-        <message>
-            <source>Connection Successful</source>
-            <translation>连接成功</translation>
-        </message>
-        <message>
-            <source>Connection timed out. Check the URL and network.</source>
-            <translation>连接超时。请检查地址和网络。</translation>
-        </message>
-        <message>
-            <source>Delay (s):</source>
-            <translation>延迟（秒）：</translation>
-        </message>
-        <message>
-            <source>Delete</source>
-            <translation>删除</translation>
-        </message>
-        <message>
-            <source>Delete profile "{name}"?</source>
-            <translation>确认删除配置文件"{name}"？</translation>
-        </message>
-        <message>
-            <source>Detail Level:</source>
-            <translation>细节级别：</translation>
-        </message>
-        <message>
-            <source>Enable image inpainting for this profile</source>
-            <translation>为此配置文件启用图像修复</translation>
-        </message>
-        <message>
-            <source>Error</source>
-            <translation>错误</translation>
-        </message>
-        <message>
-            <source>Error: {err}</source>
-            <translation>错误：{err}</translation>
-        </message>
-        <message>
-            <source>Failed to fetch model list: {err}</source>
-            <translation>获取模型列表失败：{err}</translation>
-        </message>
-        <message>
-            <source>Failed to fetch model list. HTTP {code}</source>
-            <translation>获取模型列表失败。HTTP {code}</translation>
-        </message>
-        <message>
-            <source>Fetch Models</source>
-            <translation>获取模型列表</translation>
-        </message>
-        <message>
-            <source>Host and API key are required to fetch the model list.</source>
-            <translation>需要填写地址和密钥才能获取模型列表。</translation>
-        </message>
-        <message>
-            <source>Host is required.</source>
-            <translation>需要填写地址。</translation>
-        </message>
-        <message>
-            <source>Host:</source>
-            <translation>地址：</translation>
-        </message>
-        <message>
-            <source>HTTP {code}: {text}</source>
-            <translation>HTTP {code}：{text}</translation>
-        </message>
-        <message>
-            <source>Image Endpoint:</source>
-            <translation>图像端点：</translation>
-        </message>
-        <message>
-            <source>Image Inpainting Settings (optional)</source>
-            <translation>图像修复设置（可选）</translation>
-        </message>
-        <message>
-            <source>Image Model:</source>
-            <translation>图像模型：</translation>
-        </message>
-        <message>
-            <source>Image Prompt:</source>
-            <translation>图像提示词：</translation>
-        </message>
-        <message>
-            <source>Max Tokens:</source>
-            <translation>最大 Token 数：</translation>
-        </message>
-        <message>
-            <source>Model:</source>
-            <translation>模型：</translation>
-        </message>
-        <message>
-            <source>Name:</source>
-            <translation>名称：</translation>
-        </message>
-        <message>
-            <source>New Profile</source>
-            <translation>新建配置文件</translation>
-        </message>
-        <message>
-            <source>No Change</source>
-            <translation>无变化</translation>
-        </message>
-        <message>
-            <source>No models found.</source>
-            <translation>未找到模型。</translation>
-        </message>
-        <message>
-            <source>Notice</source>
-            <translation>提示</translation>
-        </message>
-        <message>
-            <source>OCR Prompt:</source>
-            <translation>OCR 提示词：</translation>
-        </message>
-        <message>
-            <source>OCR Settings (optional)</source>
-            <translation>OCR 设置（可选）</translation>
-        </message>
-        <message>
-            <source>OCR System Prompt:</source>
-            <translation>OCR 系统提示词：</translation>
-        </message>
-        <message>
-            <source>Optional prompt sent with each inpainting request.</source>
-            <translation>每次修复请求附带的可选提示词。</translation>
-        </message>
-        <message>
-            <source>Optional system prompt for OCR.</source>
-            <translation>OCR 的可选系统提示词。</translation>
-        </message>
-        <message>
-            <source>Profile:</source>
-            <translation>配置：</translation>
-        </message>
-        <message>
-            <source>Proxy:</source>
-            <translation>代理：</translation>
-        </message>
-        <message>
-            <source>Reasoning Effort:</source>
-            <translation>思考强度：</translation>
-        </message>
-        <message>
-            <source>Requests/min:</source>
-            <translation>请求数/分钟：</translation>
-        </message>
-        <message>
-            <source>Restore Builtins</source>
-            <translation>恢复内置配置</translation>
-        </message>
-        <message>
-            <source>Restored</source>
-            <translation>已恢复</translation>
-        </message>
-        <message>
-            <source>Restored {n} built-in profile(s).</source>
-            <translation>已恢复 {n} 个内置配置。</translation>
-        </message>
-        <message>
-            <source>Select Model</source>
-            <translation>选择模型</translation>
-        </message>
-        <message>
-            <source>Temperature:</source>
-            <translation>温度：</translation>
-        </message>
-        <message>
-            <source>Test</source>
-            <translation>测试连接</translation>
-        </message>
-        <message>
-            <source>Top P:</source>
-            <translation>Top P：</translation>
-        </message>
-        <message>
-            <source>Return JSON Schema</source>
-            <translation>返回 JSON Schema</translation>
-        </message>
-        <message>
-            <source>When enabled, the API response is validated against a strict JSON schema. Disable for broader compatibility with non-OpenAI providers.</source>
-            <translation>启用后，API 响应将使用严格的 JSON Schema 进行验证。如果与非 OpenAI 提供商兼容性有问题，请关闭此选项。</translation>
-        </message>
-        <message>
-            <source>Extra Translation Instructions (optional)</source>
-            <translation>额外翻译指令（可选）</translation>
-        </message>
-        <message>
-            <source>Optional custom instructions appended to the system prompt. Leave empty to use the default translation contract.</source>
-            <translation>附加到系统提示词的可选自定义指令。留空则使用默认翻译合约。</translation>
-        </message>
-        <message>
-            <source>Instructions:</source>
-            <translation>指令：</translation>
-        </message>
-        <message>
-            <source>Unlimited (leave empty)</source>
-            <translation>无限制（留空）</translation>
-        </message>
-        <message>
-            <source>Vision support (for OCR)</source>
-            <translation>视觉支持（用于 OCR）</translation>
-        </message>
-        <message>
-            <source>Warning</source>
-            <translation>警告</translation>
-        </message>
-        <message>
-            <source>e.g., My Custom API</source>
-            <translation>例如：我的自定义 API</translation>
-        </message>
-        <message>
-            <source>0 = unlimited</source>
-            <translation>0 = 无限制</translation>
-        </message>
-        <message>
-            <source>默认</source>
-            <translation>默认</translation>
-        </message>
-        <message>
-            <source>Enable this for models that can process images. Vision-capable profiles will appear in the OCR model selector.</source>
-            <translation>启用此选项适用于能处理图像的模型。支持视觉功能的配置将出现在 OCR 模型选择器中。</translation>
-        </message>
-        <message>
-            <source>Override the model's reasoning/thinking effort.
-Leave as "default" to let the API decide.
-This maps automatically to each provider's native parameter
-(OpenAI reasoning_effort, Claude output_config.effort, etc.).</source>
-            <translation>覆写模型的推理/思考强度。
-选择"默认"则由 API 自行决定。
-该值会自动映射到各厂商的原生参数
-（OpenAI reasoning_effort、Claude output_config.effort 等）。</translation>
-        </message>
-        <message>
-            <source>OCR prompt with {language} placeholder.</source>
-            <translation>使用 {language} 占位符的 OCR 提示词。</translation>
-        </message>
-        <message>
-            <source>Enable this for models that can generate/clean images. Image-capable profiles appear in the online inpainter's profile selector.</source>
-            <translation>启用此选项适用于能生成/清理图像的模型。支持图像功能的配置将出现在在线修复的配置选择器中。</translation>
         </message>
     </context>
     <context>
@@ -7241,6 +6631,307 @@ This maps automatically to each provider's native parameter
         <message>
             <source>Width</source>
             <translation>宽度</translation>
+        </message>
+    </context>
+    <context>
+        <name>LLMProfileCardWidget</name>
+        <message>
+            <source>A valid API key is required to test the connection.</source>
+            <translation>需要填写有效的 API 密钥才能测试连接。</translation>
+        </message>
+        <message>
+            <source>API Key</source>
+            <translation>API 密钥</translation>
+        </message>
+        <message>
+            <source>API key for this provider. Stored locally.</source>
+            <translation>该供应商的 API 密钥，保存在本地。</translation>
+        </message>
+        <message>
+            <source>API key set</source>
+            <translation>已设置 API 密钥</translation>
+        </message>
+        <message>
+            <source>Built-in profiles cannot be deleted.</source>
+            <translation>内置配置不可删除。</translation>
+        </message>
+        <message>
+            <source>Connected! API is reachable and credentials are valid.</source>
+            <translation>连接成功！API 可达且凭据有效。</translation>
+        </message>
+        <message>
+            <source>Connection Failed</source>
+            <translation>连接失败</translation>
+        </message>
+        <message>
+            <source>Connection Successful</source>
+            <translation>连接成功</translation>
+        </message>
+        <message>
+            <source>Connection timed out. Check the URL and network.</source>
+            <translation>连接超时。请检查地址和网络。</translation>
+        </message>
+        <message>
+            <source>Default</source>
+            <translation>默认</translation>
+        </message>
+        <message>
+            <source>Delay (s)</source>
+            <translation>延迟（秒）</translation>
+        </message>
+        <message>
+            <source>Delete</source>
+            <translation>删除</translation>
+        </message>
+        <message>
+            <source>Detail Level</source>
+            <translation>细节等级</translation>
+        </message>
+        <message>
+            <source>Edit</source>
+            <translation>编辑</translation>
+        </message>
+        <message>
+            <source>Error</source>
+            <translation>错误</translation>
+        </message>
+        <message>
+            <source>Fetch Image Models</source>
+            <translation>获取图像模型</translation>
+        </message>
+        <message>
+            <source>Fetch Models</source>
+            <translation>获取模型列表</translation>
+        </message>
+        <message>
+            <source>Host</source>
+            <translation>主机地址</translation>
+        </message>
+        <message>
+            <source>Host and API key are required to fetch the model list.</source>
+            <translation>需要填写地址和密钥才能获取模型列表。</translation>
+        </message>
+        <message>
+            <source>Host is required.</source>
+            <translation>需要填写地址。</translation>
+        </message>
+        <message>
+            <source>Image (Inpainting)</source>
+            <translation>图像（修复）</translation>
+        </message>
+        <message>
+            <source>Image Endpoint</source>
+            <translation>图像端点</translation>
+        </message>
+        <message>
+            <source>Image Model</source>
+            <translation>图像模型</translation>
+        </message>
+        <message>
+            <source>Image Prompt</source>
+            <translation>图像提示词</translation>
+        </message>
+        <message>
+            <source>Image endpoint is required.</source>
+            <translation>图像端点必填。</translation>
+        </message>
+        <message>
+            <source>Instructions</source>
+            <translation>附加指令</translation>
+        </message>
+        <message>
+            <source>Max Tokens</source>
+            <translation>最大 Token 数</translation>
+        </message>
+        <message>
+            <source>Maximum requests per minute. 0 = unlimited.</source>
+            <translation>每分钟最大请求数，0 表示不限制。</translation>
+        </message>
+        <message>
+            <source>Maximum tokens for the OCR response.</source>
+            <translation>OCR 响应的最大 Token 数。</translation>
+        </message>
+        <message>
+            <source>Minimum delay between requests, in seconds.</source>
+            <translation>请求之间的最小间隔（秒）。</translation>
+        </message>
+        <message>
+            <source>Model</source>
+            <translation>模型</translation>
+        </message>
+        <message>
+            <source>Model id used for online inpainting.</source>
+            <translation>在线修复使用的模型 ID。</translation>
+        </message>
+        <message>
+            <source>Model id used for translation and OCR.</source>
+            <translation>翻译与 OCR 使用的模型 ID。</translation>
+        </message>
+        <message>
+            <source>No API key</source>
+            <translation>未设置 API 密钥</translation>
+        </message>
+        <message>
+            <source>No models found.</source>
+            <translation>未找到模型。</translation>
+        </message>
+        <message>
+            <source>Notice</source>
+            <translation>提示</translation>
+        </message>
+        <message>
+            <source>OCR Prompt</source>
+            <translation>OCR 提示词</translation>
+        </message>
+        <message>
+            <source>OCR System Prompt</source>
+            <translation>OCR 系统提示词</translation>
+        </message>
+        <message>
+            <source>OpenAI-compatible API base URL.</source>
+            <translation>兼容 OpenAI 的 API 基础地址。</translation>
+        </message>
+        <message>
+            <source>Optional HTTP proxy, e.g. http://127.0.0.1:7890.</source>
+            <translation>可选 HTTP 代理，例如 http://127.0.0.1:7890。</translation>
+        </message>
+        <message>
+            <source>Optional system prompt for OCR.</source>
+            <translation>OCR 的可选系统提示词。</translation>
+        </message>
+        <message>
+            <source>Proxy</source>
+            <translation>代理</translation>
+        </message>
+        <message>
+            <source>Reasoning Effort</source>
+            <translation>推理强度</translation>
+        </message>
+        <message>
+            <source>Requests/min</source>
+            <translation>每分钟请求数</translation>
+        </message>
+        <message>
+            <source>Return JSON Schema</source>
+            <translation>返回 JSON Schema</translation>
+        </message>
+        <message>
+            <source>Sampling temperature.</source>
+            <translation>采样温度。</translation>
+        </message>
+        <message>
+            <source>Temperature</source>
+            <translation>温度</translation>
+        </message>
+        <message>
+            <source>Test Connection</source>
+            <translation>测试连接</translation>
+        </message>
+        <message>
+            <source>Test Image Endpoint</source>
+            <translation>测试图像端点</translation>
+        </message>
+        <message>
+            <source>Text</source>
+            <translation>文本</translation>
+        </message>
+        <message>
+            <source>Text support is always available.</source>
+            <translation>文本支持始终可用。</translation>
+        </message>
+        <message>
+            <source>Toggle image support (this profile then appears in the online inpainter selector).</source>
+            <translation>切换图像支持（开启后该配置会出现在在线修复的选择器中）。</translation>
+        </message>
+        <message>
+            <source>Toggle vision support (this profile then appears in the OCR selector).</source>
+            <translation>切换视觉支持（开启后该配置会出现在 OCR 的选择器中）。</translation>
+        </message>
+        <message>
+            <source>Top P</source>
+            <translation>Top P</translation>
+        </message>
+        <message>
+            <source>Top-p sampling.</source>
+            <translation>Top-p 采样。</translation>
+        </message>
+        <message>
+            <source>Vision (OCR)</source>
+            <translation>视觉（OCR）</translation>
+        </message>
+        <message>
+            <source>Warning</source>
+            <translation>警告</translation>
+        </message>
+        <message>
+            <source>Add image model</source>
+            <translation>添加图像模型</translation>
+        </message>
+        <message>
+            <source>Add model</source>
+            <translation>添加模型</translation>
+        </message>
+        <message>
+            <source>Delete current image model</source>
+            <translation>删除当前图像模型</translation>
+        </message>
+        <message>
+            <source>Delete current model</source>
+            <translation>删除当前模型</translation>
+        </message>
+        <message>
+            <source>Image model name</source>
+            <translation>图像模型名</translation>
+        </message>
+        <message>
+            <source>Model name</source>
+            <translation>模型名</translation>
+        </message>
+        <message>
+            <source>Select Models</source>
+            <translation>选择模型</translation>
+        </message>
+    </context>
+    <context>
+        <name>LLMProfileListWidget</name>
+        <message>
+            <source>+ Add</source>
+            <translation>+ 新增</translation>
+        </message>
+        <message>
+            <source>All built-in profiles already exist.</source>
+            <translation>所有内置配置文件已存在。</translation>
+        </message>
+        <message>
+            <source>Confirm Delete</source>
+            <translation>确认删除</translation>
+        </message>
+        <message>
+            <source>New Profile</source>
+            <translation>新建配置文件</translation>
+        </message>
+        <message>
+            <source>No Change</source>
+            <translation>无变化</translation>
+        </message>
+        <message>
+            <source>Restore Built-ins</source>
+            <translation>恢复内置配置</translation>
+        </message>
+        <message>
+            <source>Restored</source>
+            <translation>已恢复</translation>
+        </message>
+    </context>
+    <context>
+        <name>LLMProfileDetailsWidget</name>
+        <message>
+            <source>Connection</source>
+            <translation>连接信息</translation>
+        </message>
+        <message>
+            <source>Generation</source>
+            <translation>生成参数</translation>
         </message>
     </context>
 </TS>

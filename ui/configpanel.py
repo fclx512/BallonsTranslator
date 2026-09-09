@@ -1185,7 +1185,7 @@ class _ShortcutRow(QWidget):
 
 class ShortcutEditor(QWidget):
     """Grouped shortcut rows. Flat widget — the settings page provides
-    scrolling via _wrap_page (same pattern as ProfileManagerWidget)."""
+    scrolling via _wrap_page (same pattern as LLMProfileListWidget)."""
 
     shortcut_changed = Signal()
 
@@ -1688,10 +1688,11 @@ class ConfigPanel(Widget):
             self.focusOnLLMProfile
         )
 
-        # === LLM Profile page (inline profile manager) ===
-        from utils.profile_manager import ProfileManagerWidget
+        # === LLM Profile page (card list) ===
+        from ui.llm_profile_cards import LLMProfileListWidget
 
-        self.llm_profiles_panel = ProfileManagerWidget()
+        self.llm_profiles_panel = LLMProfileListWidget()
+        self.llm_profiles_panel.set_modal_runner(self._run_modal_dialog)
         self.llm_profiles_panel.profiles_changed.connect(self.profiles_changed.emit)
         self._add_page(self.llm_profiles_panel)
 
@@ -2357,7 +2358,7 @@ class ConfigPanel(Widget):
 
         # === General: Shortcuts ===
         # Flat page (page stack provides the scroll area), same pattern as
-        # ProfileManagerWidget. Edits save and re-bind shortcuts live.
+        # LLMProfileListWidget. Edits save and re-bind shortcuts live.
         self.shortcuts_editor = ShortcutEditor()
         self.shortcuts_editor.shortcut_changed.connect(self._on_shortcuts_edited)
         self._add_page(self.shortcuts_editor)
@@ -3032,8 +3033,10 @@ class ConfigPanel(Widget):
         self._focus_on_dl_section("ocr")
 
     def focusOnLLMProfile(self, profile_id: str = ""):
-        """Navigate to the LLM Profile page."""
+        """Navigate to the LLM Profile page; focus a card when a name is given."""
         self._nav_select("llm_profile")
+        if profile_id:
+            self.llm_profiles_panel.focus_profile(profile_id)
 
     def _run_modal_dialog(self, dialog) -> int:
         """Run a child QDialog while disabling the backdrop's click-to-close

@@ -38,7 +38,6 @@ class TestStartupImports(unittest.TestCase):
             load_profiles,
             save_all_profiles,
             migrate_old_profiles,
-            ProfileManagerWidget,
         )
         print("OK: utils.profile_manager imports")
 
@@ -54,16 +53,16 @@ class TestStartupImports(unittest.TestCase):
         finally:
             sys.argv = old_argv
 
-    def test_05_profile_manager_widget_init(self):
-        """ProfileManagerWidget can be instantiated (catches missing QFrame etc.)."""
+    def test_05_llm_profile_list_widget_init(self):
+        """LLMProfileListWidget can be instantiated (catches missing imports)."""
         import qtpy.QtWidgets as QW
         app = QW.QApplication.instance() or QW.QApplication(
             sys.argv[:1] + ["--platform", "offscreen"]
         )
-        from utils.profile_manager import ProfileManagerWidget
+        from ui.llm_profile_cards import LLMProfileListWidget
 
-        w = ProfileManagerWidget()
-        print(f"OK: ProfileManagerWidget created ({w})")
+        w = LLMProfileListWidget()
+        print(f"OK: LLMProfileListWidget created ({w}, {len(w._cards)} cards)")
 
     def test_06_configpanel_import(self):
         from ui.configpanel import ConfigPanel  # noqa: F401

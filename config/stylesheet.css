@@ -2332,3 +2332,107 @@ QPushButton#UpdateDialogCancelButton {
     padding: 5px 18px;
     color: @qwidgetForegroundColor;
 }
+
+/* ── LLM Profile 卡片式设置页（ui/llm_profile_cards.py） ─────── */
+QFrame#LLMProfileCard {
+    border: 1px solid @borderColor;
+    border-radius: 6px;
+    background-color: @widgetBackgroundColor;
+}
+
+QFrame#LLMProfileCard:hover {
+    border-color: @accentPrimary;
+}
+
+/* 卡内容器透明，避免全局 QWidget 底色在卡内画出接缝 */
+QWidget#LLMProfileCardHeader,
+QWidget#LLMProfileSummaryRow,
+QWidget#LLMProfileModelRow,
+QWidget#LLMProfileCardActions,
+QWidget#LLMProfileDetails,
+QWidget#LLMProfileDetailSection,
+QWidget#LLMProfileToolbar {
+    background: transparent;
+}
+
+QLabel#LLMProfileName {
+    font-size: 13px;
+    font-weight: bold;
+    color: @qwidgetForegroundColor;
+    background: transparent;
+}
+
+QLabel#LLMProfileSummaryText,
+QLabel#LLMProfileFieldLabel {
+    font-size: 12px;
+    color: @disabledForegroundColor;
+    background: transparent;
+}
+
+QLabel#LLMProfileBadge,
+QLabel#LLMProfileKeyStatusIcon {
+    padding: 0px;
+    border: none;
+    background: transparent;
+}
+
+QToolButton#LLMProfileConfigButton,
+QToolButton#LLMProfileDeleteButton,
+QToolButton#LLMProfileModelAddButton,
+QToolButton#LLMProfileModelRemoveButton {
+    border: none;
+    background: transparent;
+    padding: 0px;
+}
+
+QToolButton#LLMProfileConfigButton:hover,
+QToolButton#LLMProfileDeleteButton:hover,
+QToolButton#LLMProfileModelAddButton:hover,
+QToolButton#LLMProfileModelRemoveButton:hover {
+    background-color: @hoverBackgroundColor;
+    border-radius: 4px;
+}
+
+QLabel#LLMProfileDetailSectionTitle {
+    font-size: 12px;
+    font-weight: bold;
+    color: @disabledForegroundColor;
+    background: transparent;
+}
+
+QFrame#LLMProfileDetailSectionLine {
+    border: none;
+    background-color: @borderColor;
+}
+
+/* 连接信息块：主机 / API Key / 图像端口（左缘强调条 + 高输入框） */
+QFrame#LLMProfileConnectionBlock {
+    border: 1px solid @borderColor;
+    border-left: 3px solid @accentPrimary;
+    border-radius: 6px;
+    background-color: @hoverBackgroundColor;
+}
+
+QWidget#LLMProfileConnectionRow {
+    background: transparent;
+}
+
+QLabel#LLMProfileConnectionLabel {
+    font-size: 12px;
+    font-weight: bold;
+    color: @qwidgetForegroundColor;
+    background: transparent;
+}
+
+QLineEdit#LLMProfileConnectionEdit {
+    border: 1px solid @borderColor;
+    border-radius: 4px;
+    background-color: @transtexteditBackgroundColor;
+    padding: 4px 8px;
+    font-size: 13px;
+}
+
+QLineEdit#LLMProfileConnectionEdit:focus {
+    border: 1px solid @accentPrimary;
+}
+

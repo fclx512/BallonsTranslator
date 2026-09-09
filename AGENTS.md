@@ -36,7 +36,8 @@ modules/
 | `utils/config.py` | 配置读写 |
 | `utils/shared.py` | 路径常量 |
 | `utils/structures.py` | `nested_dataclass`，`Config`/`Dict` 基类 |
-| `utils/profile_manager.py` | LLM API 配置管理（翻译器/OCR 共用） |
+| `utils/profile_manager.py` | LLM API 配置数据层（加载/保存/查找/网络探测；翻译器/OCR/在线修复共用） |
+| `ui/llm_profile_cards.py` | LLM Profile 卡片式设置页（卡片列表 + 折叠详情 + 能力徽章分节 + 连接信息块 + 摘要行模型下拉与 `model_options` 清单；形态对齐上游 `ballontranslator/ui/llm_profile_widgets.py`） |
 | `utils/ai_tools.py` | 翻译 agent/术语工作台共享的只读探索工具执行器（4 只读工具 + `to_openai_tools`；写类工具已随旧 AI 助手移除） |
 | `ui/mainwindow.py` | 主窗口 |
 | `ui/configpanel.py` | 配置面板、快捷键编辑 |
@@ -148,7 +149,7 @@ modules/
 3. **审计登记表**：`./ballontrans_pylibs_win/python.exe scripts/check_audit.py`（死代码/休眠登记表 + 删除文件残留引用；**删除文件前先在 `scripts/audit_registry.json` 登记 `deprecated`**）
 4. **i18n 检查**：`./ballontrans_pylibs_win/python.exe scripts/i18n_check.py`；发版前 `--ci`；`--show-expected` 列出已知孤儿
 5. **qm 编译**：`./ballontrans_pylibs_win/python.exe scripts/qm_compile.py translate/zh_CN.ts translate/zh_CN.qm`
-6. **启动冒烟测试**：`./ballontrans_pylibs_win/python.exe tests/test_startup_imports.py`（单进程约 2s；模拟关键导入链，捕捉 `NameError` / `ImportError`，含 `ProfileManagerWidget` 实例化）
+6. **启动冒烟测试**：`./ballontrans_pylibs_win/python.exe tests/test_startup_imports.py`（单进程约 2s；模拟关键导入链，捕捉 `NameError` / `ImportError`，含 `LLMProfileListWidget` 实例化）
 7. **启动 app 目视确认**（可选，但推荐）：双击 `launch.bat` 或 `python launch.py`，确认导航、页面切换、新功能视觉效果正常
 8. **MainWindow 在线演练台**（可选，排查无声崩溃/模态框/GC 时机类问题时用）：`./ballontrans_pylibs_win/python.exe scripts/mw_repro.py`——拉起真实主窗口（必须窗口模式，offscreen 起不来 FramelessWindow）跑预设场景或 `--project` 只读打开真实工程；faulthandler 常开。用法见 `scripts/README.md`，方法论见经验教训 §3.3
 
