@@ -2468,3 +2468,87 @@ QLineEdit#LLMProfileConnectionEdit:focus {
     border: 1px solid @accentPrimary;
 }
 
+
+/* ── Run dialog: stage grid + collapsible stage sections ─────────
+   阶段网格（图标开关 + 模块下拉）与折叠选项区。图标本身的着色在代码里
+   完成（render_svg_pixmap 按 @accentXxx 覆写 fill），这里只管背景与悬停。 */
+
+QLabel#RunPipelineSectionTitle {
+    color: @qwidgetForegroundColor;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+QFrame#RunPipelineSectionLine {
+    min-height: 1px;
+    max-height: 1px;
+    border: none;
+    background-color: @borderColor;
+}
+
+QFrame#RunPipelineStages {
+    background: transparent;
+    border: none;
+}
+
+QWidget#RunPipelineModuleActivator {
+    background: transparent;
+    border: none;
+}
+
+QWidget#RunPipelineModuleActivator[moduleActive="false"]:hover {
+    background-color: @hoverBackgroundColor;
+    border-radius: 5px;
+}
+
+QAbstractButton#RunPipelineModuleButton {
+    min-width: 24px;
+    max-width: 24px;
+    min-height: 24px;
+    max-height: 24px;
+    padding: 0px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+}
+
+QAbstractButton#RunPipelineModuleButton:hover {
+    background-color: @hoverBackgroundColor;
+}
+
+QLabel#RunPipelineModuleIcon {
+    border: none;
+    background: transparent;
+}
+
+/* 停用的阶段：下拉压暗，与图标一起读出「这步不跑」 */
+QComboBox#RunPipelineModuleSelector[moduleActive="false"] {
+    color: @disabledForegroundColor;
+}
+
+QToolButton#RunPipelineModuleSettingsHeader {
+    min-height: 20px;
+    padding: 0px;
+    color: @qwidgetForegroundColor;
+    background: transparent;
+    border: none;
+    font-size: 12px;
+    font-weight: 500;
+    text-align: left;
+}
+
+QToolButton#RunPipelineModuleSettingsHeader:hover {
+    background-color: @hoverBackgroundColor;
+    border-radius: 4px;
+}
+
+QLabel#RunPipelineSettingLabel {
+    color: @qwidgetForegroundColor;
+    font-size: 12px;
+}
+
+QLabel#RunPipelineSubsectionHeader {
+    color: @qwidgetForegroundColor;
+    font-size: 12px;
+    font-weight: 600;
+}

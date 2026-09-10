@@ -1662,9 +1662,6 @@ class ConfigPanel(Widget):
         self.trans_config_panel = TranslatorConfigPanel(
             label_translator, scrollWidget=self
         )
-        self.detect_config_panel.keep_existing_checker.clicked.connect(
-            self.on_keepline_clicked
-        )
         self.trans_config_panel.navigate_to_llm_profile.connect(
             self.focusOnLLMProfile
         )
@@ -2580,11 +2577,6 @@ class ConfigPanel(Widget):
         pcfg.clip_text_overflow = self.clip_overflow_checker.isChecked()
         self.clip_overflow_changed.emit()
 
-    def on_keepline_clicked(self):
-        pcfg.module.keep_exist_textlines = (
-            self.detect_config_panel.keep_existing_checker.isChecked()
-        )
-
     def on_export_config(self):
         """Export current configuration to a JSON file."""
         from pathlib import Path
@@ -3226,9 +3218,6 @@ class ConfigPanel(Widget):
         if pcfg.check_update_on_startup:
             self.check_update_on_startup_checker.setChecked(True)
 
-        self.detect_config_panel.keep_existing_checker.setChecked(
-            pcfg.module.keep_exist_textlines
-        )
         self.let_fntsize_combox.setCurrentIndex(pcfg.let_fntsize_flag)
         self.let_fntstroke_combox.setCurrentIndex(pcfg.let_fntstroke_flag)
         self.let_alignment_combox.setCurrentIndex(pcfg.let_alignment_flag)

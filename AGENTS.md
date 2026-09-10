@@ -40,7 +40,8 @@ modules/
 | `ui/llm_profile_cards.py` | LLM Profile 卡片式设置页（卡片列表 + 折叠详情 + 能力徽章分节 + 连接信息块 + 摘要行模型下拉与 `model_options` 清单；形态对齐上游 `ballontranslator/ui/llm_profile_widgets.py`） |
 | `utils/ai_tools.py` | 翻译 agent/术语工作台共享的只读探索工具执行器（4 只读工具 + `to_openai_tools`；写类工具已随旧 AI 助手移除） |
 | `ui/mainwindow.py` | 主窗口 |
-| `ui/configpanel.py` | 配置面板、快捷键编辑 |
+| `ui/configpanel.py` | 配置面板、快捷键编辑；四个管线页合并为一项「Pipeline」（页内标签，`ui/configpanel.py::_build_pipeline_page`），阶段只编辑当前引擎的参数 |
+| `ui/run_pipeline_dialog.py` | 运行对话框：启用模块网格（阶段图标开关 + 模块下拉）+ 各阶段折叠选项区；模块下拉写回底部栏选择器 |
 | `ui/text_panel.py` | 文本编辑面板 |
 | `ui/panel_rail.py` | 嵌字页格式区左缘窄栏：功能图标列（画布浮层面板入口，见 `ui/custom_widget/rail_dock_panel.py`） |
 | `ui/io_thread.py` | 管线编排（检测→OCR→翻译→修复） |

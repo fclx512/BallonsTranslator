@@ -1563,12 +1563,9 @@ class ModuleManager(QObject):
         )
         inpainter_panel.paramwidget_edited.connect(self.on_inpainterparam_edited)
         inpainter_panel.inpainter_changed.connect(self.setInpainter)
-        inpainter_panel.needInpaintChecker.checker_changed.connect(
-            self.on_inpainter_checker_changed
-        )
-        inpainter_panel.needInpaintChecker.checker.setChecked(
-            cfg_module.check_need_inpaint
-        )
+        # "Skip simple cases" moved to the run dialog; push the persisted value
+        # into the inpainter class attribute it gates.
+        InpainterBase.check_need_inpaint = bool(cfg_module.check_need_inpaint)
 
         self.textdetect_panel = textdetector_panel = config_panel.detect_config_panel
         textdetector_params = merge_config_module_params(
@@ -2208,6 +2205,3 @@ class ModuleManager(QObject):
                 self.run_canvas_inpaint = False
                 self.inpaint_thread.terminate()
 
-    def on_inpainter_checker_changed(self, is_checked: bool):
-        cfg_module.check_need_inpaint = is_checked
-        InpainterBase.check_need_inpaint = is_checked

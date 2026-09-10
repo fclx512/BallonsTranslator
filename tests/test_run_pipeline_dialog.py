@@ -1,0 +1,182 @@
+"""Offscreen tests for the run dialog (stage grid + collapsible options).
+
+The dialog is where the pipeline's run-time options live now: keep-existing
+lines (detect), skip-simple-cases (inpaint), source/target language and the
+single-block strategy (translate).
+
+Run from the repo root:
+    ./ballontrans_pylibs_win/python.exe tests/test_run_pipeline_dialog.py
+"""
+
+import os
+import os.path as osp
+import sys
+import unittest
+
+APP_ROOT = osp.dirname(osp.dirname(osp.abspath(__file__)))
+sys.path.insert(0, APP_ROOT)
+os.chdir(APP_ROOT)
+os.environ["QT_API"] = "pyqt6"
+os.environ["QT_QPA_PLATFORM"] = "offscreen"
+
+from qtpy.QtWidgets import QApplication  # noqa: E402
+
+from utils.config import SingleBlkTranslateMode, pcfg  # noqa: E402
+
+PAGE_NAMES = ["%03d.jpg" % i for i in range(1, 11)]
+
+
+class RunPipelineDialogTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from ui.run_pipeline_dialog import (
+            STAGE_DETECT,
+            STAGE_INPAINT,
+            STAGE_OCR,
+            STAGE_TRANSLATE,
+            RunPipelineDialog,
+        )
+
+        cls.app = QApplication.instance() or QApplication([])
+        cls.Dialog = RunPipelineDialog
+        cls.STAGE_DETECT = STAGE_DETECT
+        cls.STAGE_OCR = STAGE_OCR
+        cls.STAGE_INPAINT = STAGE_INPAINT
+        cls.STAGE_TRANSLATE = STAGE_TRANSLATE
+
+    def setUp(self):
+        # Snapshot every pcfg field the dialog writes, then restore: importing
+        # utils.config loads the real config.json (see the test-pollution notes).
+        cfg = pcfg.module
+        keys = (
+            "keep_exist_textlines",
+            "check_need_inpaint",
+            "single_blk_translate_mode",
+            "translate_source",
+            "translate_target",
+            "enable_detect",
+            "enable_ocr",
+            "enable_translate",
+            "enable_inpaint",
+            "llm_translate_context",
+            "llm_story_context",
+            "llm_prior_context_token_budget",
+            "llm_glossary_path",
+            "llm_glossary_mode",
+        )
+        snapshot = {k: getattr(cfg, k) for k in keys}
+        self.addCleanup(
+            lambda: [setattr(cfg, k, v) for k, v in snapshot.items()]
+        )
+        self.dialog = self.Dialog(None, page_names=PAGE_NAMES)
+
+    # ── stage grid ───────────────────────────────────────────────────
+
+    def test_stage_grid_has_every_stage(self):
+        self.assertEqual(
+            sorted(self.dialog._stage_activators),
+            sorted([self.STAGE_DETECT, self.STAGE_OCR, self.STAGE_INPAINT,
+                    self.STAGE_TRANSLATE]),
+        )
+        types = {
+            stage: act.module_type
+            for stage, act in self.dialog._stage_activators.items()
+        }
+        self.assertEqual(types[self.STAGE_DETECT], "textdetector")
+        self.assertEqual(types[self.STAGE_OCR], "ocr")
+        self.assertEqual(types[self.STAGE_INPAINT], "inpainter")
+        self.assertEqual(types[self.STAGE_TRANSLATE], "translator")
+
+    def test_stage_toggle_emits(self):
+        seen = []
+        self.dialog.stage_toggled.connect(lambda i, c: seen.append((i, c)))
+        act = self.dialog._stage_activators[self.STAGE_OCR]
+        act.button.setChecked(not act.button.isChecked())
+        self.assertEqual(seen, [(self.STAGE_OCR, act.button.isChecked())])
+
+    def test_module_pick_emits_with_stage_type(self):
+        seen = []
+        self.dialog.module_selected.connect(lambda t, n: seen.append((t, n)))
+        act = self.dialog._stage_activators[self.STAGE_TRANSLATE]
+        act.selector.addItem("dummy_translator")
+        act.selector.setCurrentText("dummy_translator")
+        self.assertIn(("translator", "dummy_translator"), seen)
+
+    def test_section_visibility_follows_stage(self):
+        act = self.dialog._stage_activators[self.STAGE_INPAINT]
+        act.button.setChecked(False)
+        self.assertFalse(self.dialog._stage_sections[self.STAGE_INPAINT].isVisibleTo(self.dialog))
+        act.button.setChecked(True)
+        self.assertTrue(self.dialog._stage_sections[self.STAGE_INPAINT].isVisibleTo(self.dialog))
+
+    def test_section_expansion_is_remembered(self):
+        self.dialog._set_section_expanded(self.STAGE_OCR, True)
+        self.assertTrue(self.dialog._stage_bodies[self.STAGE_OCR].isVisibleTo(self.dialog))
+        self.assertIs(
+            type(self.dialog)._sections_expanded[self.STAGE_OCR], True
+        )
+        reopened = self.Dialog(None, page_names=PAGE_NAMES)
+        self.assertTrue(
+            reopened._stage_headers[self.STAGE_OCR].isChecked()
+        )
+
+    # ── stage options ────────────────────────────────────────────────
+
+    def test_keep_existing_lines_writes_config(self):
+        self.dialog.keep_lines_cb.setChecked(True)
+        self.assertTrue(pcfg.module.keep_exist_textlines)
+        self.dialog.keep_lines_cb.setChecked(False)
+        self.assertFalse(pcfg.module.keep_exist_textlines)
+
+    def test_skip_simple_cases_writes_config_and_class_attr(self):
+        from modules.inpaint.base import InpainterBase
+
+        original = InpainterBase.check_need_inpaint
+        self.addCleanup(setattr, InpainterBase, "check_need_inpaint", original)
+
+        self.dialog.skip_simple_cb.setChecked(False)
+        self.assertFalse(pcfg.module.check_need_inpaint)
+        self.assertFalse(InpainterBase.check_need_inpaint)
+        self.dialog.skip_simple_cb.setChecked(True)
+        self.assertTrue(InpainterBase.check_need_inpaint)
+
+    def test_single_block_mode_writes_config(self):
+        combo = self.dialog.single_blk_combo
+        combo.setCurrentIndex(combo.findData(SingleBlkTranslateMode.Context))
+        self.assertEqual(
+            pcfg.module.single_blk_translate_mode, SingleBlkTranslateMode.Context
+        )
+
+    def test_language_change_emits(self):
+        seen = []
+        self.dialog.translate_source_changed.connect(seen.append)
+        self.dialog.set_translator_metadata("ja", "zh", ["ja", "en"], ["zh", "en"])
+        self.assertEqual(seen, [])  # quiet while mirroring
+        combo = self.dialog.source_combobox
+        combo.setCurrentText("en")
+        self.assertEqual(seen, ["en"])
+
+    # ── page range / modes ───────────────────────────────────────────
+
+    def test_page_filter_all_pages_is_none(self):
+        self.assertTrue(self.dialog.all_pages_cb.isChecked())
+        self.assertIsNone(self.dialog.page_filter())
+
+    def test_page_filter_range(self):
+        self.dialog.all_pages_cb.setChecked(False)
+        self.dialog.range_slider.set_range(1, 3)
+        self.assertEqual(self.dialog.page_filter(), PAGE_NAMES[1:4])
+
+    def test_render_only_tab(self):
+        self.assertFalse(self.dialog.is_render_only())
+        self.dialog.tab_bar.setCurrentIndex(1)
+        self.assertTrue(self.dialog.is_render_only())
+
+    def test_run_without_textstyle_checkbox(self):
+        self.assertFalse(self.dialog.run_without_textstyle_update())
+        self.dialog.wo_update_cb.setChecked(True)
+        self.assertTrue(self.dialog.run_without_textstyle_update())
+
+
+if __name__ == "__main__":
+    unittest.main()

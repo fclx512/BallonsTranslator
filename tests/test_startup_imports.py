@@ -68,6 +68,23 @@ class TestStartupImports(unittest.TestCase):
         from ui.configpanel import ConfigPanel  # noqa: F401
         print("OK: ui.configpanel imports")
 
+    def test_07_run_pipeline_dialog_init(self):
+        """RunPipelineDialog can be built (catches missing icons/imports).
+
+        The dialog is constructed by ``MainWindow.run_imgtrans``, which the
+        smoke test cannot reach, so build it here instead.
+        """
+        import qtpy.QtWidgets as QW
+        app = QW.QApplication.instance() or QW.QApplication(
+            sys.argv[:1] + ["--platform", "offscreen"]
+        )
+        from ui.run_pipeline_dialog import RunPipelineDialog
+
+        d = RunPipelineDialog(None, page_names=["001.jpg", "002.jpg"])
+        n = len(d._stage_activators)
+        print(f"OK: RunPipelineDialog created ({d}, {n} stage activators)")
+        d.deleteLater()
+
 
 if __name__ == "__main__":
     loader = unittest.TestLoader()

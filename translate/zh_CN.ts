@@ -1888,11 +1888,6 @@ Run detection + OCR to populate text blocks.</source>
     <context>
         <name>InpaintConfigPanel</name>
         <message>
-            <location filename="..\ui\module_parse_widgets.py" line="523" />
-            <source>Let the program decide whether it is necessary to use the selected inpaint method.</source>
-            <translation>由程序决定是否有必要使用选定的图像修复方法</translation>
-        </message>
-        <message>
             <source>External Editor</source>
             <translation>外部编辑器</translation>
         </message>
@@ -2351,46 +2346,6 @@ Failed: {f}/{t}</source>
             <translation>运行</translation>
         </message>
         <message>
-            <location filename="..\ui\mainwindow.py" line="2027" />
-            <source>Page %1 ~ Page %2 (%3 pages)</source>
-            <translation>第 %1 页 ~ 第 %2 页（共 %3 页）</translation>
-        </message>
-        <message>
-            <location filename="..\ui\mainwindow.py" line="2054" />
-            <source>All Pages</source>
-            <translation>全部页面</translation>
-        </message>
-        <message>
-            <location filename="..\ui\mainwindow.py" line="2077" />
-            <source>Enable Text Detection</source>
-            <translation>启用文本检测</translation>
-        </message>
-        <message>
-            <location filename="..\ui\mainwindow.py" line="2078" />
-            <source>Enable OCR</source>
-            <translation>启用OCR</translation>
-        </message>
-        <message>
-            <location filename="..\ui\mainwindow.py" line="2079" />
-            <source>Enable Translation</source>
-            <translation>启用翻译</translation>
-        </message>
-        <message>
-            <location filename="..\ui\mainwindow.py" line="2080" />
-            <source>Enable Inpainting</source>
-            <translation>启用修复</translation>
-        </message>
-        <message>
-            <location filename="..\ui\mainwindow.py" line="2163" />
-            <source>Enforce Term Consistency (Glossary)</source>
-            <translation>启用术语一致性（词汇表）</translation>
-        </message>
-        <message>
-            <location filename="..\ui\mainwindow.py" line="2175" />
-            <source>Run without update textstyle</source>
-            <translation>Run且不覆盖已有字体样式</translation>
-        </message>
-        <message>
             <location filename="..\ui\mainwindow.py" line="2179" />
             <source>Run</source>
             <translation>运行</translation>
@@ -2526,66 +2481,6 @@ Failed: {f}/{t}</source>
             <translation>应用</translation>
         </message>
         <message>
-            <location filename="..\ui\mainwindow.py" />
-            <source>Context</source>
-            <translation>上下文</translation>
-        </message>
-        <message>
-            <location filename="..\ui\mainwindow.py" />
-            <source>Browse...</source>
-            <translation>浏览...</translation>
-        </message>
-        <message>
-            <location filename="..\ui\mainwindow.py" />
-            <source>Glossary files (*.json *.txt *.tsv);;All files (*)</source>
-            <translation>术语表文件 (*.json *.txt *.tsv);;所有文件 (*)</translation>
-        </message>
-        <message>
-            <location filename="..\ui\mainwindow.py" />
-            <source>Select Glossary File</source>
-            <translation>选择术语表文件</translation>
-        </message>
-        <message>
-            <location filename="..\ui\mainwindow.py" />
-            <source>Glossary</source>
-            <translation>术语表</translation>
-        </message>
-        <message>
-            <location filename="..\ui\mainwindow.py" />
-            <source>Mode</source>
-            <translation>模式</translation>
-        </message>
-        <message>
-            <location filename="..\ui\mainwindow.py" />
-            <source>Matching</source>
-            <translation>匹配</translation>
-        </message>
-        <message>
-            <location filename="..\ui\mainwindow.py" />
-            <source>All</source>
-            <translation>全部</translation>
-        </message>
-        <message>
-            <location filename="..\ui\mainwindow.py" />
-            <source>Token Budget</source>
-            <translation>令牌预算</translation>
-        </message>
-        <message>
-            <location filename="..\ui\mainwindow.py" />
-            <source>Inject Prior-Page History</source>
-            <translation>注入前页历史</translation>
-        </message>
-        <message>
-            <location filename="..\ui\mainwindow.py" line="2944" />
-            <source>Pipeline</source>
-            <translation>流水线</translation>
-        </message>
-        <message>
-            <location filename="..\ui\mainwindow.py" line="2945" />
-            <source>Render Only</source>
-            <translation>纯渲染</translation>
-        </message>
-        <message>
             <location filename="..\ui\mainwindow.py" line="3239" />
             <source>Rendering pages...</source>
             <translation>正在渲染页面...</translation>
@@ -2636,18 +2531,8 @@ Failed: {f}/{t}</source>
             <translation>已无可撤销内容。上一次批量替换可在查找替换面板整体回滚。</translation>
         </message>
         <message>
-            <source>Render all result images from current project data.
-No pipeline stages will be executed.</source>
-            <translation>仅从当前项目数据渲染所有结果图像。
-不执行任何管线阶段。</translation>
-        </message>
-        <message>
             <source>This page has unrendered batch changes and will refresh automatically when opened</source>
             <translation>此页有未渲染的批量修改，翻到该页后将自动刷新</translation>
-        </message>
-        <message>
-            <source>Inject Story Context</source>
-            <translation>注入剧情上下文</translation>
         </message>
     </context>
     <context>
@@ -3917,11 +3802,6 @@ Orientation: {o}</source>
     </context>
     <context>
         <name>TextDetectConfigPanel</name>
-        <message>
-            <location filename="..\ui\module_parse_widgets.py" line="551" />
-            <source>Keep Existing Lines</source>
-            <translation>保留已有文本</translation>
-        </message>
     </context>
     <context>
         <name>TextPanel</name>
@@ -4135,16 +4015,6 @@ Orientation: {o}</source>
     <context>
         <name>TranslatorConfigPanel</name>
         <message>
-            <location filename="..\ui\module_parse_widgets.py" line="483" />
-            <source>Source</source>
-            <translation>源语言</translation>
-        </message>
-        <message>
-            <location filename="..\ui\module_parse_widgets.py" line="485" />
-            <source>Target</source>
-            <translation>目标语言</translation>
-        </message>
-        <message>
             <location filename="..\ui\module_parse_widgets.py" />
             <source>API Profile</source>
             <translation>API 配置文件</translation>
@@ -4153,26 +4023,6 @@ Orientation: {o}</source>
             <location filename="..\ui\module_parse_widgets.py" />
             <source>Manage…</source>
             <translation>管理…</translation>
-        </message>
-        <message>
-            <location filename="..\ui\module_parse_widgets.py" />
-            <source>Single-Block Translation</source>
-            <translation>单框翻译</translation>
-        </message>
-        <message>
-            <location filename="..\ui\module_parse_widgets.py" />
-            <source>Mode</source>
-            <translation>模式</translation>
-        </message>
-        <message>
-            <location filename="..\ui\module_parse_widgets.py" />
-            <source>plain</source>
-            <translation>直译</translation>
-        </message>
-        <message>
-            <location filename="..\ui\module_parse_widgets.py" />
-            <source>context</source>
-            <translation>上下文</translation>
         </message>
         <message>
             <source>Ask for confirmation before workbench actions that call the AI (e.g. Prepare for translation).</source>
@@ -6950,6 +6800,176 @@ in Settings → Mirror Config, then click Retry.</source>
         <message>
             <source>Generation</source>
             <translation>生成参数</translation>
+        </message>
+    </context>
+    <context>
+        <name>RunPipelineDialog</name>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Activate Modules</source>
+            <translation>启用模块</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>All</source>
+            <translation>全文</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>All Pages</source>
+            <translation>全部页面</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Browse...</source>
+            <translation>浏览...</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Cancel</source>
+            <translation>取消</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Context</source>
+            <translation>上下文</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Enforce Term Consistency (Glossary)</source>
+            <translation>启用术语一致性（词汇表）</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Glossary</source>
+            <translation>术语表</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Glossary files (*.json *.txt *.tsv);;All files (*)</source>
+            <translation>术语表文件 (*.json *.txt *.tsv);;所有文件 (*)</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Inject Prior-Page History</source>
+            <translation>注入前页历史</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Inject Story Context</source>
+            <translation>注入剧情上下文</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Inpainting</source>
+            <translation>图像修复</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Keep Existing Lines</source>
+            <translation>保留已有文本</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Matching</source>
+            <translation>匹配</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Mode</source>
+            <translation>模式</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>No run-time options for this stage.</source>
+            <translation>该阶段没有运行期选项。</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>OCR</source>
+            <translation>OCR</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Page %1 ~ Page %2 (%3 pages)</source>
+            <translation>第 %1 页 ~ 第 %2 页（共 %3 页）</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Pipeline</source>
+            <translation>管线</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Render Only</source>
+            <translation>纯渲染</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Render all result images from current project data.
+No pipeline stages will be executed.</source>
+            <translation>仅从当前项目数据渲染所有结果图像。
+不执行任何管线阶段。</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Run</source>
+            <translation>运行</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Run without update textstyle</source>
+            <translation>Run且不覆盖已有字体样式</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Select Glossary File</source>
+            <translation>选择术语表文件</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Single-Block Translation</source>
+            <translation>单框翻译</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Skip simple cases</source>
+            <translation>跳过简单区域</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Source</source>
+            <translation>原文</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Target</source>
+            <translation>目标语言</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Text Detection</source>
+            <translation>文本检测</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Token Budget</source>
+            <translation>令牌预算</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>Translation</source>
+            <translation>译文</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>context</source>
+            <translation>上下文</translation>
+        </message>
+        <message>
+            <location filename="..\ui\run_pipeline_dialog.py" />
+            <source>plain</source>
+            <translation>直译</translation>
         </message>
     </context>
 </TS>

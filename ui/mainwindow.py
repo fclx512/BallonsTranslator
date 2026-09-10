@@ -350,6 +350,9 @@ class MainWindow(mainwindow_cls):
         self.app = app
         self.backup_blkstyles = []
         self._run_imgtrans_wo_textstyle_update = False
+        # Live run dialog, so an asynchronous translator load can refresh the
+        # language selectors it is showing (None while the dialog is closed).
+        self._run_dialog = None
 
 
         self.setupThread()
@@ -671,6 +674,8 @@ class MainWindow(mainwindow_cls):
             )
             self.configPanel.trans_config_panel.finishSetTranslator(translator)
             LOGGER.info("Translator set to {}".format(name))
+            if self._run_dialog is not None:
+                self._sync_run_dialog_translator(self._run_dialog)
         else:
             LOGGER.error("invalid translator")
 
@@ -738,12 +743,8 @@ class MainWindow(mainwindow_cls):
         self.bottomBar.trans_selector.setVisible(True)
         self.bottomBar.inpaint_selector.setVisible(True)
 
-        self.configPanel.trans_config_panel.target_combobox.currentTextChanged.connect(
-            self.on_trans_tgt_changed
-        )
-        self.configPanel.trans_config_panel.source_combobox.currentTextChanged.connect(
-            self.on_trans_src_changed
-        )
+        # Source / target languages are chosen in the bottom bar or in the run
+        # dialog (the settings page no longer carries them).
 
         # Bottom-bar translator language submenus.
         self.bottomBar.trans_selector.src_selector.currentTextChanged.connect(
@@ -3152,17 +3153,15 @@ class MainWindow(mainwindow_cls):
             tgt_selector.setCurrentText(module)
 
     def on_trans_src_changed(self):
+        # Source / target now come from the bottom bar submenu or from the run
+        # dialog.  The dialog is modal, so the two can never be live at once:
+        # the only mirror that matters is the bottom bar's own submenu.
         sender = self.sender()
         text = sender.currentText()
         translator = self.module_manager.translator
         if translator is not None:
             translator.set_source(text)
         pcfg.module.translate_source = text
-        combobox = self.configPanel.trans_config_panel.source_combobox
-        if sender != combobox:
-            combobox.blockSignals(True)
-            combobox.setCurrentText(text)
-            combobox.blockSignals(False)
         src_selector = self.bottomBar.trans_selector.src_selector
         if sender != src_selector:
             src_selector.blockSignals(True)
@@ -3176,11 +3175,6 @@ class MainWindow(mainwindow_cls):
         if translator is not None:
             translator.set_target(text)
         pcfg.module.translate_target = text
-        combobox = self.configPanel.trans_config_panel.target_combobox
-        if sender != combobox:
-            combobox.blockSignals(True)
-            combobox.setCurrentText(text)
-            combobox.blockSignals(False)
         tgt_selector = self.bottomBar.trans_selector.tgt_selector
         if sender != tgt_selector:
             tgt_selector.blockSignals(True)
@@ -3483,409 +3477,36 @@ class MainWindow(mainwindow_cls):
         if num_pages == 0:
             return
 
-        page_filter = None
-        from qtpy.QtCore import Qt
-        from qtpy.QtWidgets import (
-            QCheckBox,
-            QDialog,
-            QFileDialog,
-            QFrame,
-            QHBoxLayout,
-            QStackedWidget,
-            QTabBar,
-            QVBoxLayout,
-            QWidget,
-        )
+        from .run_pipeline_dialog import RunPipelineDialog
 
-        from ui.custom_widget import ConfigComboBox, NoArrowsSpinBox, RangeSlider
+        page_names = list(self.imgtrans_proj.pages.keys())
+        dialog = RunPipelineDialog(self, page_names=page_names)
+        self._run_dialog = dialog
+        dialog.stage_toggled.connect(self.on_enable_module)
+        dialog.module_selected.connect(self.on_run_module_selected)
+        dialog.translate_source_changed.connect(self.on_trans_src_changed)
+        dialog.translate_target_changed.connect(self.on_trans_tgt_changed)
+        self._sync_run_dialog_translator(dialog)
 
-        dialog = QDialog(self)
-        dialog.setWindowTitle(self.tr("Run"))
-        dialog.setSizeGripEnabled(False)
-        layout = QVBoxLayout(dialog)
+        try:
+            accepted = dialog.exec() == QDialog.DialogCode.Accepted
+        finally:
+            self._run_dialog = None
+        render_mode = dialog.is_render_only()
+        page_filter = dialog.page_filter()
+        wo_update = dialog.run_without_textstyle_update()
+        dialog.deleteLater()
 
-        def _resize_to_fit():
-            """Unlock size, recalculate, then lock both dimensions."""
-            dialog.setMinimumSize(0, 0)
-            dialog.setMaximumSize(16777215, 16777215)
-            dialog.adjustSize()
-            dialog.setFixedSize(dialog.width(), dialog.height())
-
-        range_frame = QFrame()
-        range_frame.setFrameShape(QFrame.Shape.StyledPanel)
-        range_layout = QVBoxLayout(range_frame)
-
-        # Spinboxes for precise page input (placed above slider)
-        spin_layout = QHBoxLayout()
-        spin_layout.setContentsMargins(0, 0, 0, 0)
-        start_spin = NoArrowsSpinBox()
-        start_spin.setRange(1, num_pages)
-        start_spin.setValue(1)
-        start_spin.setFixedWidth(70)
-        end_spin = NoArrowsSpinBox()
-        end_spin.setRange(1, num_pages)
-        end_spin.setValue(num_pages)
-        end_spin.setFixedWidth(70)
-
-        spin_layout.addStretch()
-        spin_layout.addWidget(start_spin)
-        spin_layout.addWidget(QLabel(" ~ "))
-        spin_layout.addWidget(end_spin)
-        spin_layout.addStretch()
-        range_layout.addLayout(spin_layout)
-
-        slider = RangeSlider(0, num_pages - 1)
-        slider.setMinimumWidth(350)
-        range_layout.addWidget(slider)
-
-        range_info = QLabel()
-        range_layout.addWidget(range_info)
-
-        def update_range_info():
-            lo = slider.low() + 1
-            hi = slider.high() + 1
-            range_info.setText(
-                self.tr("Page %1 ~ Page %2 (%3 pages)")
-                .replace("%1", str(lo))
-                .replace("%2", str(hi))
-                .replace("%3", str(hi - lo + 1))
-            )
-
-        def sync_spinboxes():
-            start_spin.blockSignals(True)
-            end_spin.blockSignals(True)
-            start_spin.setValue(slider.low() + 1)
-            end_spin.setValue(slider.high() + 1)
-            start_spin.blockSignals(False)
-            end_spin.blockSignals(False)
-
-        def on_spinbox_changed():
-            slider.blockSignals(True)
-            slider.set_range(start_spin.value() - 1, end_spin.value() - 1)
-            slider.blockSignals(False)
-            sync_spinboxes()
-            update_range_info()
-
-        start_spin.valueChanged.connect(on_spinbox_changed)
-        end_spin.valueChanged.connect(on_spinbox_changed)
-        slider.rangeChanged.connect(
-            lambda lo, hi: (sync_spinboxes(), update_range_info())
-        )
-
-        all_pages_cb = QCheckBox(self.tr("All Pages"))
-        all_pages_cb.setObjectName('ConfigCheckBox')
-        all_pages_cb.toggled.connect(
-            lambda checked: (
-                slider.set_range(0, num_pages - 1),
-                slider.setEnabled(not checked),
-                start_spin.setEnabled(not checked),
-                end_spin.setEnabled(not checked),
-                update_range_info(),
-            )
-        )
-        all_pages_cb.setChecked(True)
-        range_layout.addWidget(all_pages_cb)
-
-        update_range_info()
-
-        # ── Tab bar: Pipeline / Render Only ────────────────────────────────
-        tab_bar = QTabBar()
-        tab_bar.addTab(self.tr("Pipeline"))
-        tab_bar.addTab(self.tr("Render Only"))
-        tab_bar.setExpanding(False)
-        tab_bar.setDrawBase(True)
-        tab_bar.setCurrentIndex(0)
-        layout.addWidget(tab_bar)
-
-        # ── Stacked content (switched by tab bar) ──────────────────────────
-        stack = QStackedWidget()
-
-        # Page 0: Pipeline mode
-        pipeline_page = QWidget()
-        pipeline_layout = QVBoxLayout(pipeline_page)
-        pipeline_layout.setContentsMargins(0, 0, 0, 0)
-        pipeline_layout.addWidget(range_frame)
-
-        # Page 1: Render-only mode (minimal)
-        render_page = QWidget()
-        render_layout = QVBoxLayout(render_page)
-        render_layout.setContentsMargins(0, 0, 0, 0)
-        render_label = QLabel(
-            self.tr("Render all result images from current project data.\nNo pipeline stages will be executed.")
-        )
-        render_label.setWordWrap(True)
-        render_layout.addWidget(render_label)
-        render_layout.addStretch()
-
-        stack.addWidget(pipeline_page)
-        stack.addWidget(render_page)
-
-        tab_bar.currentChanged.connect(stack.setCurrentIndex)
-
-        # ── Pipeline stage toggles ──────────────────────────────────────────
-        stages_frame = QFrame()
-        stages_frame.setFrameShape(QFrame.Shape.StyledPanel)
-        stages_layout = QVBoxLayout(stages_frame)
-        stages_layout.setContentsMargins(8, 6, 8, 6)
-
-        stage_labels = [
-            self.tr("Enable Text Detection"),
-            self.tr("Enable OCR"),
-            self.tr("Enable Translation"),
-            self.tr("Enable Inpainting"),
-        ]
-        for idx, label in enumerate(stage_labels):
-            cb = QCheckBox(label)
-            cb.setObjectName('ConfigCheckBox')
-            cb.setChecked(pcfg.module.stage_enabled(idx))
-            cb.toggled.connect(
-                lambda checked, i=idx: self.on_enable_module(i, checked)
-            )
-            stages_layout.addWidget(cb)
-
-        pipeline_layout.addWidget(stages_frame)
-
-        # ── LLM context settings (history injection + glossary) ──
-        context_frame = QFrame()
-        context_frame.setFrameShape(QFrame.Shape.StyledPanel)
-        context_vbox = QVBoxLayout(context_frame)
-        context_vbox.setContentsMargins(8, 6, 8, 6)
-        context_vbox.setSpacing(6)
-
-        ctx_title = QLabel(self.tr("Context"))
-        ctx_title.setStyleSheet("font-weight: bold;")
-        context_vbox.addWidget(ctx_title)
-
-        # Row: history-injection switch + Token Budget
-        llm_row = QWidget()
-        llm_row_layout = QHBoxLayout(llm_row)
-        llm_row_layout.setContentsMargins(0, 0, 0, 0)
-        llm_row_layout.setSpacing(8)
-        history_cb = QCheckBox(self.tr("Inject Prior-Page History"))
-        history_cb.setObjectName('ConfigCheckBox')
-        history_cb.setChecked(bool(pcfg.module.llm_translate_context))
-        history_cb.toggled.connect(
-            lambda checked: setattr(pcfg.module, 'llm_translate_context', checked)
-        )
-        llm_row_layout.addWidget(history_cb)
-        story_cb = QCheckBox(self.tr("Inject Story Context"))
-        story_cb.setObjectName('ConfigCheckBox')
-        story_cb.setChecked(bool(pcfg.module.llm_story_context))
-        story_cb.toggled.connect(
-            lambda checked: setattr(pcfg.module, 'llm_story_context', checked)
-        )
-        llm_row_layout.addWidget(story_cb)
-        llm_row_layout.addStretch()
-
-        token_label = QLabel(self.tr("Token Budget"))
-        llm_row_layout.addWidget(token_label)
-        token_budget_spin = NoArrowsSpinBox()
-        token_budget_spin.setRange(512, 16384)
-        token_budget_spin.setSingleStep(512)
-        token_budget_spin.setValue(pcfg.module.llm_prior_context_token_budget)
-        token_budget_spin.valueChanged.connect(
-            lambda v: setattr(pcfg.module, 'llm_prior_context_token_budget', v)
-        )
-        token_budget_spin.setFixedWidth(80)
-        llm_row_layout.addWidget(token_budget_spin)
-
-        def _update_token_visibility(enabled):
-            token_label.setVisible(enabled)
-            token_budget_spin.setVisible(enabled)
-            _resize_to_fit()
-
-        history_cb.toggled.connect(_update_token_visibility)
-        _update_token_visibility(history_cb.isChecked())
-
-        context_vbox.addWidget(llm_row)
-
-        # Glossary checkbox
-        glossary_cb = QCheckBox(self.tr("Enforce Term Consistency (Glossary)"))
-        glossary_cb.setObjectName('ConfigCheckBox')
-        glossary_cb.setChecked(bool(pcfg.module.llm_glossary_path))
-        context_vbox.addWidget(glossary_cb)
-
-        # Glossary file path row (status indicator + browse + custom terms)
-        glossary_path_row = QWidget()
-        glossary_path_layout = QHBoxLayout(glossary_path_row)
-        glossary_path_layout.setContentsMargins(0, 0, 0, 0)
-        glossary_path_layout.setSpacing(6)
-        glossary_path_label = QLabel(self.tr("Glossary"))
-        glossary_path_layout.addWidget(glossary_path_label)
-
-        # Status indicator: ○ (no file) / ✓ filename (file loaded)
-        glossary_status_label = QLabel()
-        if pcfg.module.llm_glossary_path:
-            fname = osp.basename(pcfg.module.llm_glossary_path)
-            glossary_status_label.setText(f"\u2713 {fname}")
-            glossary_status_label.setStyleSheet("color: #4caf50;")
-        else:
-            glossary_status_label.setText("\u25cb")
-            glossary_status_label.setStyleSheet("color: #888;")
-        glossary_path_layout.addWidget(glossary_status_label)
-
-        glossary_browse_btn = QPushButton(self.tr("Browse..."))
-        glossary_browse_btn.setFixedWidth(110)
-        glossary_browse_btn.setFixedHeight(27)
-        glossary_path_layout.addWidget(glossary_browse_btn)
-
-        def _browse_glossary():
-            path, _ = QFileDialog.getOpenFileName(
-                self,
-                self.tr("Select Glossary File"),
-                pcfg.module.llm_glossary_path or "",
-                self.tr("Glossary files (*.json *.txt *.tsv);;All files (*)"),
-            )
-            if path:
-                pcfg.module.llm_glossary_path = path
-                fname = osp.basename(path)
-                glossary_status_label.setText(f"\u2713 {fname}")
-                glossary_status_label.setStyleSheet("color: #4caf50;")
-
-        glossary_browse_btn.clicked.connect(_browse_glossary)
-        glossary_path_row.setVisible(glossary_cb.isChecked())
-        context_vbox.addWidget(glossary_path_row)
-
-        # Glossary mode row
-        glossary_mode_row = QWidget()
-        glossary_mode_layout = QHBoxLayout(glossary_mode_row)
-        glossary_mode_layout.setContentsMargins(0, 0, 0, 0)
-        glossary_mode_layout.setSpacing(6)
-        glossary_mode_label = QLabel(self.tr("Mode"))
-        glossary_mode_layout.addWidget(glossary_mode_label)
-        glossary_mode_layout.addStretch()
-        glossary_mode_combo = ConfigComboBox()
-        glossary_mode_combo.addItem(self.tr("Matching"), "matching")
-        glossary_mode_combo.addItem(self.tr("All"), "all")
-        mode_idx = glossary_mode_combo.findData(pcfg.module.llm_glossary_mode)
-        if mode_idx >= 0:
-            glossary_mode_combo.setCurrentIndex(mode_idx)
-        glossary_mode_combo.currentIndexChanged.connect(
-            lambda: setattr(
-                pcfg.module, "llm_glossary_mode", glossary_mode_combo.currentData()
-            )
-        )
-        glossary_mode_combo.setFixedWidth(140)
-        glossary_mode_layout.addWidget(glossary_mode_combo)
-        glossary_mode_row.setVisible(glossary_cb.isChecked())
-        context_vbox.addWidget(glossary_mode_row)
-
-        def _update_glossary_visibility(checked):
-            glossary_path_row.setVisible(checked)
-            glossary_mode_row.setVisible(checked)
-            _resize_to_fit()
-
-        glossary_cb.toggled.connect(_update_glossary_visibility)
-
-        # Context frame shows whenever the translation stage is enabled
-        context_frame.setVisible(pcfg.module.stage_enabled(2))
-
-        pipeline_layout.addWidget(context_frame)
-
-        # Run without update textstyle
-        wo_update_cb = QCheckBox(self.tr("Run without update textstyle"))
-        wo_update_cb.setObjectName('ConfigCheckBox')
-        pipeline_layout.addWidget(wo_update_cb)
-        pipeline_layout.addStretch()
-
-        layout.addWidget(stack)
-
-        btn_layout = QHBoxLayout()
-        btn_layout.addStretch()
-        run_btn = QPushButton(self.tr("Run"))
-        run_btn.setFixedWidth(90)
-        cancel_btn = QPushButton(self.tr("Cancel"))
-        cancel_btn.setFixedWidth(90)
-        btn_layout.addWidget(run_btn)
-        btn_layout.addWidget(cancel_btn)
-        layout.addLayout(btn_layout)
-
-        render_mode = False
-
-        def _do_batch_render():
-            """Iterate selected pages, render and save each, then restore."""
-            nonlocal render_mode
-            render_mode = True
-            orig_page = self.imgtrans_proj.current_img
-            orig_save = self.save_on_page_changed
-            self.save_on_page_changed = False
-
-            if all_pages_cb.isChecked():
-                page_names = list(self.imgtrans_proj.pages.keys())
-            else:
-                page_names = [
-                    self.imgtrans_proj.idx2pagename(i)
-                    for i in range(slider.low(), slider.high() + 1)
-                ]
-
-            from qtpy.QtWidgets import QProgressDialog
-
-            progress = QProgressDialog(
-                self.tr("Rendering pages..."), self.tr("Cancel"),
-                0, len(page_names), dialog,
-            )
-            progress.setWindowModality(Qt.WindowModality.WindowModal)
-            progress.setMinimumDuration(300)
-            progress.show()
-
-            for i, pname in enumerate(page_names):
-                if progress.wasCanceled():
-                    break
-                progress.setValue(i)
-                progress.setLabelText(
-                    self.tr("Rendering %1 (%2/%3)")
-                    .replace("%1", pname)
-                    .replace("%2", str(i + 1))
-                    .replace("%3", str(len(page_names)))
-                )
-                self.imgtrans_proj.set_current_img(pname)
-                self.canvas.clear_undostack(update_saved_step=True)
-                self.canvas._fit_to_window = False
-                self.canvas.updateCanvas()
-                self.st_manager.updateSceneTextitems()
-                self.saveCurrentPage()
-                self.imgtrans_proj.clear_page_needs_rerender(pname)
-                QApplication.processEvents()
-
-            progress.setValue(len(page_names))
-            # Restore original page
-            if orig_page and orig_page != self.imgtrans_proj.current_img:
-                self.pageList.setCurrentRow(
-                    self.imgtrans_proj.pagename2idx(orig_page)
-                )
-            self.save_on_page_changed = orig_save
-            self.updatePageList()
-
-        def _on_run():
-            if tab_bar.currentIndex() == 1:
-                _do_batch_render()
-            dialog.accept()
-
-        run_btn.clicked.connect(_on_run)
-        cancel_btn.clicked.connect(dialog.reject)
-
-        if pcfg.module.all_stages_disabled():
-            run_btn.setEnabled(False)
-
-        # Lock dialog size; height dynamically adjusts via _resize_to_fit()
-        _resize_to_fit()
-
-        # 术语表路径在对话框内 Browse 时直接写入 pcfg，关闭后保持（译前就绪状态可见）
-        if dialog.exec_() != QDialog.DialogCode.Accepted:
+        # The glossary path was committed to pcfg while browsing, so it stays
+        # even when the dialog is cancelled (the pre-translation state shows it).
+        if not accepted:
             return
 
         if render_mode:
+            self.run_imgtrans_render_only(page_filter)
             return
 
-        # 计算本次运行的页面范围（供 on_run_imgtrans 使用）
-        page_filter = None
-        if not all_pages_cb.isChecked():
-            page_filter = [
-                self.imgtrans_proj.idx2pagename(i)
-                for i in range(slider.low(), slider.high() + 1)
-            ]
-
-        if wo_update_cb.isChecked():
+        if wo_update:
             self._run_imgtrans_wo_textstyle_update = True
 
         if (
@@ -3905,6 +3526,80 @@ class MainWindow(mainwindow_cls):
             if msgBox.clickedButton() == cancel_btn:
                 return
         self.on_run_imgtrans(page_filter=page_filter)
+
+    def _sync_run_dialog_translator(self, dialog) -> None:
+        """Seed the run dialog's language selectors from the loaded translator."""
+        translator = self.module_manager.translator
+        if translator is None:
+            return
+        dialog.set_translator_metadata(
+            translator.lang_source,
+            translator.lang_target,
+            translator.supported_src_list,
+            translator.supported_tgt_list,
+        )
+
+    def on_run_module_selected(self, module_type: str, module_name: str):
+        """A run-dialog module pick drives the bottom bar, which is the single
+        source of truth — its signal chain then loads the module."""
+        selector = {
+            "textdetector": self.bottomBar.textdet_selector,
+            "ocr": self.bottomBar.ocr_selector,
+            "inpainter": self.bottomBar.inpaint_selector,
+            "translator": self.bottomBar.trans_selector,
+        }.get(module_type)
+        if selector is None:
+            return
+        selector.setSelectedValue(module_name, block_signals=False)
+
+    def run_imgtrans_render_only(self, page_filter=None) -> None:
+        """Iterate the selected pages, render and save each, then restore."""
+        orig_page = self.imgtrans_proj.current_img
+        orig_save = self.save_on_page_changed
+        self.save_on_page_changed = False
+
+        if page_filter is None:
+            page_names = list(self.imgtrans_proj.pages.keys())
+        else:
+            page_names = list(page_filter)
+
+        from qtpy.QtWidgets import QProgressDialog
+
+        progress = QProgressDialog(
+            self.tr("Rendering pages..."), self.tr("Cancel"),
+            0, len(page_names), self,
+        )
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(300)
+        progress.show()
+
+        for i, pname in enumerate(page_names):
+            if progress.wasCanceled():
+                break
+            progress.setValue(i)
+            progress.setLabelText(
+                self.tr("Rendering %1 (%2/%3)")
+                .replace("%1", pname)
+                .replace("%2", str(i + 1))
+                .replace("%3", str(len(page_names)))
+            )
+            self.imgtrans_proj.set_current_img(pname)
+            self.canvas.clear_undostack(update_saved_step=True)
+            self.canvas._fit_to_window = False
+            self.canvas.updateCanvas()
+            self.st_manager.updateSceneTextitems()
+            self.saveCurrentPage()
+            self.imgtrans_proj.clear_page_needs_rerender(pname)
+            QApplication.processEvents()
+
+        progress.setValue(len(page_names))
+        # Restore the page that was open before rendering
+        if orig_page and orig_page != self.imgtrans_proj.current_img:
+            self.pageList.setCurrentRow(
+                self.imgtrans_proj.pagename2idx(orig_page)
+            )
+        self.save_on_page_changed = orig_save
+        self.updatePageList()
 
     def run_imgtrans_wo_textstyle_update(self):
         self._run_imgtrans_wo_textstyle_update = True

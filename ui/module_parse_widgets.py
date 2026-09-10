@@ -596,21 +596,8 @@ class TranslatorConfigPanel(ModuleConfigParseWidget):
         )
         self.translator_changed = self.module_changed
 
-        # ── Source / Target languages ────────────────────────────
-        self.source_combobox = ConfigComboBox(scrollWidget=scrollWidget)
-        self.target_combobox = ConfigComboBox(scrollWidget=scrollWidget)
-
-        st_layout = QHBoxLayout()
-        st_layout.setSpacing(15)
-        st_layout.setAlignment(
-            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
-        )
-        st_layout.addWidget(ParamNameLabel(self.tr("Source")))
-        st_layout.addWidget(self.source_combobox)
-        st_layout.addWidget(ParamNameLabel(self.tr("Target")))
-        st_layout.addWidget(self.target_combobox)
-
-        self.vlayout.insertLayout(1, st_layout)
+        # Source / target languages moved to the run dialog (they are a
+        # per-run choice); the bottom bar keeps its own language submenu.
 
         # ── Active Profile section ───────────────────────────────
         profile_section = QWidget()
@@ -647,50 +634,14 @@ class TranslatorConfigPanel(ModuleConfigParseWidget):
 
         self._profile_combo.currentTextChanged.connect(self._on_profile_changed)
 
-        # ── Single-block translation mode (agent-only strategy) ──
-        self._single_blk_section = QWidget()
-        sb_layout = QVBoxLayout(self._single_blk_section)
-        sb_layout.setContentsMargins(0, 0, 0, 0)
-        sb_layout.setSpacing(4)
-
-        sb_header = ConfigSectionHeader(self.tr("Single-Block Translation"))
-        sb_layout.addWidget(sb_header)
-
-        sb_row = QHBoxLayout()
-        sb_row.setSpacing(6)
-        from utils.config import SingleBlkTranslateMode, pcfg
-
-        self._single_blk_combo = ConfigComboBox(scrollWidget=scrollWidget)
-        self._single_blk_combo.setFixedWidth(CONFIG_COMBOBOX_LONG)
-        self._single_blk_combo.addItem(
-            self.tr("plain"), SingleBlkTranslateMode.Plain
-        )
-        self._single_blk_combo.addItem(
-            self.tr("context"), SingleBlkTranslateMode.Context
-        )
-        idx = self._single_blk_combo.findData(
-            pcfg.module.single_blk_translate_mode
-        )
-        self._single_blk_combo.setCurrentIndex(max(idx, 0))
-        self._single_blk_combo.currentIndexChanged.connect(
-            lambda: setattr(
-                pcfg.module,
-                "single_blk_translate_mode",
-                self._single_blk_combo.currentData(),
-            )
-        )
-
-        sb_row.addWidget(ParamNameLabel(self.tr("Mode")))
-        sb_row.addWidget(self._single_blk_combo)
-        sb_row.addStretch()
-        sb_layout.addLayout(sb_row)
-
-        self.vlayout.insertWidget(3, self._single_blk_section)
-        self._single_blk_section.setVisible(False)
+        # Single-block translation mode moved to the run dialog (agent-only
+        # run-time strategy).
 
         # ── Workbench (glossary/story) confirm toggle ────────────
         # 工作台是左侧栏常驻功能,内部固定走 AgentTranslator,与所选
         # 翻译器无关,故此节常显
+        from utils.config import pcfg
+
         self._workbench_section = QWidget()
         wb_layout = QVBoxLayout(self._workbench_section)
         wb_layout.setContentsMargins(0, 0, 0, 0)
@@ -721,21 +672,9 @@ class TranslatorConfigPanel(ModuleConfigParseWidget):
     # ── Public ───────────────────────────────────────────────────
 
     def finishSetTranslator(self, translator: BaseTranslator):
-        self.source_combobox.blockSignals(True)
-        self.target_combobox.blockSignals(True)
         self.module_combobox.blockSignals(True)
-
-        self.source_combobox.clear()
-        self.target_combobox.clear()
-
-        self.source_combobox.addItems(translator.supported_src_list)
-        self.target_combobox.addItems(translator.supported_tgt_list)
         self.module_combobox.setCurrentText(translator.name)
-        self.source_combobox.setCurrentText(translator.lang_source)
-        self.target_combobox.setCurrentText(translator.lang_target)
         self.updateModuleParamWidget()
-        self.source_combobox.blockSignals(False)
-        self.target_combobox.blockSignals(False)
         self.module_combobox.blockSignals(False)
 
     # ── Overrides ────────────────────────────────────────────────
@@ -750,7 +689,6 @@ class TranslatorConfigPanel(ModuleConfigParseWidget):
                 self.visibleWidget.hide()
 
         self._refresh_profile_section()
-        self._refresh_single_blk_section()
 
         if module in self.param_widget_map:
             widget = self.param_widget_map[module]
@@ -803,14 +741,6 @@ class TranslatorConfigPanel(ModuleConfigParseWidget):
     def _on_manage_profiles(self):
         self.navigate_to_llm_profile.emit()
 
-    # ── Single-block section ──────────────────────────────────────
-
-    def _refresh_single_blk_section(self):
-        """Show the single-block strategy only for the agent translator."""
-        module = self.module_combobox.currentText()
-        is_agent = module == "LLM_Agent_Translator"
-        self._single_blk_section.setVisible(is_agent)
-
 
 class InpaintConfigPanel(ModuleConfigParseWidget):
     def __init__(
@@ -829,12 +759,8 @@ class InpaintConfigPanel(ModuleConfigParseWidget):
         self.exclude_modules = {"LLMInpaint"}
         self.inpainter_changed = self.module_changed
         self.setInpainter = self.setModule
-        self.needInpaintChecker = ParamCheckerBox(
-            self.tr(
-                "Let the program decide whether it is necessary to use the selected inpaint method."
-            )
-        )
-        self.vlayout.addWidget(self.needInpaintChecker)
+        # "Skip simple cases" moved to the run dialog; its initial state is
+        # pushed into ``InpainterBase`` by ``ui/module_manager.py``.
 
         # ── External editor (Photoshop) path ──
         from utils.config import pcfg
@@ -893,9 +819,7 @@ class TextDetectConfigPanel(ModuleConfigParseWidget):
         )
         self.detector_changed = self.module_changed
         self.setDetector = self.setModule
-        self.keep_existing_checker = QCheckBox(text=self.tr("Keep Existing Lines"))
-        self.keep_existing_checker.setObjectName('ParamCheckBox')
-        self.p_layout.insertWidget(2, self.keep_existing_checker)
+        # "Keep Existing Lines" moved to the run dialog.
 
 
 class OCRConfigPanel(ModuleConfigParseWidget):
