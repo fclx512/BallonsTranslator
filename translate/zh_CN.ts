@@ -800,16 +800,16 @@
             <translation>&lt;p&gt;立即从内存中释放所有已加载的模型。无需重启应用即可释放&lt;b&gt; GPU/CPU 资源&lt;/b&gt;。&lt;/p&gt;</translation>
         </message>
         <message>
-            <source>&lt;p&gt;Select the &lt;b&gt;text detection engine&lt;/b&gt;. Different detectors offer varying accuracy and speed. Some engines may require additional model downloads on first use.&lt;/p&gt;</source>
-            <translation>&lt;p&gt;选择&lt;b&gt;文本检测引擎&lt;/b&gt;。不同检测器提供不同的精度和速度。部分引擎首次使用可能需要额外下载模型。&lt;/p&gt;</translation>
+            <source>&lt;p&gt;Parameters of the active &lt;b&gt;text detection engine&lt;/b&gt;. The engine itself is picked in the bottom bar; some engines may require additional model downloads on first use.&lt;/p&gt;</source>
+            <translation>&lt;p&gt;当前&lt;b&gt;文本检测引擎&lt;/b&gt;的参数。引擎本身在底部栏选择；部分引擎首次使用可能需要额外下载模型。&lt;/p&gt;</translation>
         </message>
         <message>
-            <source>&lt;p&gt;Select the &lt;b&gt;OCR&lt;/b&gt; (Optical Character Recognition) engine. This stage extracts text from detected text regions in the image.&lt;/p&gt;</source>
-            <translation>&lt;p&gt;选择&lt;b&gt; OCR&lt;/b&gt;（光学字符识别）引擎。该阶段从图像中检测到的文本区域提取文字。&lt;/p&gt;</translation>
+            <source>&lt;p&gt;Parameters of the active &lt;b&gt;OCR&lt;/b&gt; (Optical Character Recognition) engine. This stage extracts text from detected text regions in the image.&lt;/p&gt;</source>
+            <translation>&lt;p&gt;当前&lt;b&gt; OCR&lt;/b&gt;（光学字符识别）引擎的参数。该阶段从图像中检测到的文本区域提取文字。&lt;/p&gt;</translation>
         </message>
         <message>
-            <source>&lt;p&gt;Select the &lt;b&gt;image inpainting engine&lt;/b&gt;. After erasing text regions, the inpainter fills the background. Quality varies by image complexity and engine capability.&lt;/p&gt;</source>
-            <translation>&lt;p&gt;选择&lt;b&gt;图像修复引擎&lt;/b&gt;。擦除文本区域后，修复工具填充背景。质量因图像复杂度和引擎能力而异。&lt;/p&gt;</translation>
+            <source>&lt;p&gt;Parameters of the active &lt;b&gt;image inpainting engine&lt;/b&gt;. After erasing text regions, the inpainter fills the background. Quality varies by image complexity and engine capability.&lt;/p&gt;</source>
+            <translation>&lt;p&gt;当前&lt;b&gt;图像修复引擎&lt;/b&gt;的参数。擦除文本区域后，修复工具填充背景。质量因图像复杂度和引擎能力而异。&lt;/p&gt;</translation>
         </message>
         <message>
             <source>&lt;p&gt;Reopen the last project automatically when the application starts. Saves time when continuing work on the same project.&lt;/p&gt;</source>
@@ -900,12 +900,16 @@
             <translation>模块操作</translation>
         </message>
         <message>
+            <source>Pipeline</source>
+            <translation>管线</translation>
+        </message>
+        <message>
             <source>LLM Profile</source>
             <translation>LLM 配置</translation>
         </message>
         <message>
-            <source>&lt;p&gt;Select the &lt;b&gt;translation engine&lt;/b&gt;. Online translators require an API profile with credentials configured under &lt;b&gt;LLM Profile&lt;/b&gt;.&lt;/p&gt;</source>
-            <translation>&lt;p&gt;选择&lt;b&gt;翻译引擎&lt;/b&gt;。在线翻译器需要在&lt;b&gt;LLM 配置&lt;/b&gt;中配置 API 凭据。&lt;/p&gt;</translation>
+            <source>&lt;p&gt;Parameters of the active &lt;b&gt;translation engine&lt;/b&gt;. Online translators require an API profile with credentials configured under &lt;b&gt;LLM Profile&lt;/b&gt;.&lt;/p&gt;</source>
+            <translation>&lt;p&gt;当前&lt;b&gt;翻译引擎&lt;/b&gt;的参数。在线翻译器需要在&lt;b&gt;LLM 配置&lt;/b&gt;中配置 API 凭据。&lt;/p&gt;</translation>
         </message>
         <message>
             <source>Temporary Projects</source>
@@ -4855,6 +4859,11 @@ in Settings → Mirror Config, then click Retry.</source>
             <location filename="..\ui\module_parse_widgets.py" />
             <source>Parameters</source>
             <translation>参数</translation>
+        </message>
+        <message>
+            <location filename="..\ui\module_parse_widgets.py" />
+            <source>Engine: %1</source>
+            <translation>当前引擎：%1</translation>
         </message>
     </context>
     <context>

@@ -48,6 +48,7 @@ from qtpy.QtWidgets import (
     QSizePolicy,
     QSpacerItem,
     QStackedWidget,
+    QTabBar,
     QTreeView,
     QVBoxLayout,
     QWidget,
@@ -1536,6 +1537,12 @@ class ConfigPanel(Widget):
         'ProgressMessageBox',
     }
 
+    # Tab order of the merged pipeline page (``_build_pipeline_page``).
+    PIPELINE_STAGE_DETECT = 0
+    PIPELINE_STAGE_OCR = 1
+    PIPELINE_STAGE_INPAINT = 2
+    PIPELINE_STAGE_TRANSLATOR = 3
+
     save_config = Signal()
     unload_models = Signal()
     reload_textstyle = Signal(bool)
@@ -1575,9 +1582,6 @@ class ConfigPanel(Widget):
         dlConfigPanel = _DeadBlock(self.tr("DL Module"))  # noqa: F841
         generalConfigPanel = _DeadBlock(self.tr("General"))
 
-        label_text_det = self.tr("Text Detection")
-        label_text_ocr = self.tr("OCR")
-        label_inpaint = self.tr("Inpaint")
         label_translator = self.tr("Translator")
         label_project = self.tr("Project")
         label_typesetting = self.tr("Typesetting")
@@ -1651,41 +1655,25 @@ class ConfigPanel(Widget):
         self.detect_config_panel = TextDetectConfigPanel(
             self.tr("Detector"), scrollWidget=self
         )
-        self.detect_sub_block = self._add_grouped_page(
-            label_text_det, self.detect_config_panel, object_name="GroupDetect",
-            note=self.tr("<p>Select the <b>text detection engine</b>. Different detectors offer varying accuracy and speed. Some engines may require additional model downloads on first use.</p>"),
-        )
-        detect_group = self.detect_sub_block.section_widget
-        self.detect_config_panel.keep_existing_checker.clicked.connect(
-            self.on_keepline_clicked
-        )
-
         self.ocr_config_panel = OCRConfigPanel(self.tr("OCR"), scrollWidget=self)
-        self.ocr_sub_block = self._add_grouped_page(
-            label_text_ocr, self.ocr_config_panel, object_name="GroupOCR",
-            note=self.tr("<p>Select the <b>OCR</b> (Optical Character Recognition) engine. This stage extracts text from detected text regions in the image.</p>"),
-        )
-        ocr_group = self.ocr_sub_block.section_widget
-
         self.inpaint_config_panel = InpaintConfigPanel(
             self.tr("Inpainter"), scrollWidget=self
         )
-        self.inpaint_sub_block = self._add_grouped_page(
-            label_inpaint, self.inpaint_config_panel, object_name="GroupInpaint",
-            note=self.tr("<p>Select the <b>image inpainting engine</b>. After erasing text regions, the inpainter fills the background. Quality varies by image complexity and engine capability.</p>"),
-        )
-        inpaint_group = self.inpaint_sub_block.section_widget
-
         self.trans_config_panel = TranslatorConfigPanel(
             label_translator, scrollWidget=self
         )
-        self.trans_sub_block = self._add_grouped_page(
-            label_translator, self.trans_config_panel, object_name="GroupTranslate",
-            note=self.tr("<p>Select the <b>translation engine</b>. Online translators require an API profile with credentials configured under <b>LLM Profile</b>.</p>"),
+        self.detect_config_panel.keep_existing_checker.clicked.connect(
+            self.on_keepline_clicked
         )
-        trans_group = self.trans_sub_block.section_widget
         self.trans_config_panel.navigate_to_llm_profile.connect(
             self.focusOnLLMProfile
+        )
+        # One merged page, one tab per stage (see ``_build_pipeline_page``).
+        self.pipeline_page = self._build_pipeline_page()
+        # Registered without an outer scroll area: the tab bar stays pinned
+        # above the stack, and each tab brings its own scroll area.
+        self._page_index[id(self.pipeline_page)] = self.pageStack.addWidget(
+            self.pipeline_page
         )
 
         # === LLM Profile page (card list) ===
@@ -2520,10 +2508,7 @@ class ConfigPanel(Widget):
         # Build section tree with group headers
         module_header = self.configTable.addHeader(self.tr("Modules"))
         self.configTable.addSection(module_header, self.tr("Module Actions"), "models", self.models_group)
-        self.configTable.addSection(module_header, label_text_det, "detect", detect_group)
-        self.configTable.addSection(module_header, label_text_ocr, "ocr", ocr_group)
-        self.configTable.addSection(module_header, label_inpaint, "inpaint", inpaint_group)
-        self.configTable.addSection(module_header, label_translator, "trans", trans_group)
+        self.configTable.addSection(module_header, self.tr("Pipeline"), "pipeline", self.pipeline_page)
         self.configTable.addSection(module_header, self.tr("LLM Profile"), "llm_profile", self.llm_profiles_panel)
 
         general_header = self.configTable.addHeader(self.tr("General"))
@@ -2546,10 +2531,7 @@ class ConfigPanel(Widget):
         # Map: section_key -> widget for page switching
         self._nav_section_to_widget = {
             "models": self.models_group,
-            "detect": detect_group,
-            "ocr": ocr_group,
-            "inpaint": inpaint_group,
-            "trans": trans_group,
+            "pipeline": self.pipeline_page,
             "llm_profile": self.llm_profiles_panel,
             "project": self.project_block.section_widget,
             "typesetting": self.typesetting_block.section_widget,
@@ -2706,8 +2688,10 @@ class ConfigPanel(Widget):
         # addGroupedBlock/vlayout route into this panel's pageStack.
         return _DeadBlock(header)
 
-    def _wrap_page(self, content: QWidget) -> QScrollArea:
+    def _wrap_page(self, content: QWidget, margins=None) -> QScrollArea:
         """Wrap a section widget into a scrollable page container."""
+        if margins is None:
+            margins = CONFIGBLOCK_CONTENT_MARGINS
         area = QScrollArea()
         area.setWidgetResizable(True)
         area.setContentsMargins(0, 0, 0, 0)
@@ -2715,7 +2699,7 @@ class ConfigPanel(Widget):
         area.setVerticalScrollBar(ConfigScrollBar(area))
         page = QWidget()
         lay = QVBoxLayout(page)
-        lay.setContentsMargins(*CONFIGBLOCK_CONTENT_MARGINS)
+        lay.setContentsMargins(*margins)
         lay.setAlignment(Qt.AlignmentFlag.AlignTop)
         lay.addWidget(content)
         # Keep the content at its natural height instead of letting the
@@ -2732,6 +2716,77 @@ class ConfigPanel(Widget):
         idx = self.pageStack.addWidget(area)
         self._page_index[id(content)] = idx
         return idx
+
+    def _build_pipeline_page(self) -> QWidget:
+        """Build the merged pipeline page: one tab per stage.
+
+        Each tab hosts the stage's ``ModuleConfigParseWidget`` with its module
+        selector replaced by a read-only engine label — the engine itself is
+        picked in the bottom bar, this page only edits its parameters.  The
+        stage panels keep their identity and signals so the bottom bar, the
+        module manager and the canvas inpaint tool panel are unaffected.
+        """
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(
+            CONFIGBLOCK_CONTENT_MARGINS[0],
+            CONFIGBLOCK_CONTENT_MARGINS[1],
+            CONFIGBLOCK_CONTENT_MARGINS[2],
+            0,
+        )
+        layout.setSpacing(8)
+
+        self.pipeline_tab_bar = QTabBar()
+        self.pipeline_tab_bar.setObjectName("PipelineTabBar")
+        self.pipeline_tab_bar.setExpanding(False)
+        self.pipeline_tab_bar.setDrawBase(True)
+        layout.addWidget(self.pipeline_tab_bar)
+
+        self.pipeline_stack = QStackedWidget()
+        layout.addWidget(self.pipeline_stack)
+
+        stages = (
+            (
+                self.detect_config_panel,
+                self.tr("Text Detection"),
+                self.tr("<p>Parameters of the active <b>text detection engine</b>. The engine itself is picked in the bottom bar; some engines may require additional model downloads on first use.</p>"),
+            ),
+            (
+                self.ocr_config_panel,
+                self.tr("OCR"),
+                self.tr("<p>Parameters of the active <b>OCR</b> (Optical Character Recognition) engine. This stage extracts text from detected text regions in the image.</p>"),
+            ),
+            (
+                self.inpaint_config_panel,
+                self.tr("Inpaint"),
+                self.tr("<p>Parameters of the active <b>image inpainting engine</b>. After erasing text regions, the inpainter fills the background. Quality varies by image complexity and engine capability.</p>"),
+            ),
+            (
+                self.trans_config_panel,
+                self.tr("Translator"),
+                self.tr("<p>Parameters of the active <b>translation engine</b>. Online translators require an API profile with credentials configured under <b>LLM Profile</b>.</p>"),
+            ),
+        )
+        for panel, title, note in stages:
+            panel.set_module_selector_visible(False)
+            # Anchored to the engine label rather than a fixed index: the
+            # stage panels insert their own widgets into this row.
+            panel.p_layout.insertWidget(
+                panel.p_layout.indexOf(panel.engine_label) + 1,
+                _make_note_btn(note),
+            )
+            self.pipeline_tab_bar.addTab(title)
+            self.pipeline_stack.addWidget(
+                self._wrap_page(
+                    panel,
+                    margins=(0, 12, 0, CONFIGBLOCK_CONTENT_MARGINS[3]),
+                )
+            )
+
+        self.pipeline_tab_bar.currentChanged.connect(
+            self.pipeline_stack.setCurrentIndex
+        )
+        return page
 
     def _add_grouped_page(
         self, group_title, widget, object_name=None, name=None, description=None, note=None
@@ -3016,21 +3071,22 @@ class ConfigPanel(Widget):
         """Select the nav-tree section by key."""
         self.configTable.setCurrentSection(section_key)
 
-    def _focus_on_dl_section(self, dl_key: str):
-        """Navigate directly to the DL module page."""
-        self._nav_select(dl_key)
+    def _focus_pipeline_stage(self, stage: int):
+        """Open the merged pipeline page on the given stage tab."""
+        self._nav_select("pipeline")
+        self.pipeline_tab_bar.setCurrentIndex(stage)
 
     def focusOnTranslator(self):
-        self._focus_on_dl_section("trans")
+        self._focus_pipeline_stage(self.PIPELINE_STAGE_TRANSLATOR)
 
     def focusOnInpaint(self):
-        self._focus_on_dl_section("inpaint")
+        self._focus_pipeline_stage(self.PIPELINE_STAGE_INPAINT)
 
     def focusOnDetect(self):
-        self._focus_on_dl_section("detect")
+        self._focus_pipeline_stage(self.PIPELINE_STAGE_DETECT)
 
     def focusOnOCR(self):
-        self._focus_on_dl_section("ocr")
+        self._focus_pipeline_stage(self.PIPELINE_STAGE_OCR)
 
     def focusOnLLMProfile(self, profile_id: str = ""):
         """Navigate to the LLM Profile page; focus a card when a name is given."""

@@ -450,6 +450,12 @@ class InpaintPanel(Widget):
 
     def showEvent(self, e) -> None:
         self.inpaint_layout.addWidget(self.inpainter_panel.module_combobox)
+        # The merged pipeline settings page hides this selector (the engine is
+        # picked in the bottom bar), so the tool panel has to light it up
+        # explicitly when it borrows it.  Never hide it again here: on a tool
+        # switch Qt may deliver the new panel's show before the old one's
+        # hide, and an explicit hide would then win.
+        self.inpainter_panel.module_combobox.setVisible(True)
         super().showEvent(e)
 
     def hideEvent(self, e) -> None:
@@ -523,6 +529,12 @@ class RectPanel(Widget):
 
     def showEvent(self, e) -> None:
         self.inpaint_layout.addWidget(self.inpainter_panel.module_combobox)
+        # The merged pipeline settings page hides this selector (the engine is
+        # picked in the bottom bar), so the tool panel has to light it up
+        # explicitly when it borrows it.  Never hide it again here: on a tool
+        # switch Qt may deliver the new panel's show before the old one's
+        # hide, and an explicit hide would then win.
+        self.inpainter_panel.module_combobox.setVisible(True)
         super().showEvent(e)
 
     def hideEvent(self, e) -> None:
