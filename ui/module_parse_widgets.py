@@ -635,39 +635,8 @@ class TranslatorConfigPanel(ModuleConfigParseWidget):
         self._profile_combo.currentTextChanged.connect(self._on_profile_changed)
 
         # Single-block translation mode moved to the run dialog (agent-only
-        # run-time strategy).
-
-        # ── Workbench (glossary/story) confirm toggle ────────────
-        # 工作台是左侧栏常驻功能,内部固定走 AgentTranslator,与所选
-        # 翻译器无关,故此节常显
-        from utils.config import pcfg
-
-        self._workbench_section = QWidget()
-        wb_layout = QVBoxLayout(self._workbench_section)
-        wb_layout.setContentsMargins(0, 0, 0, 0)
-        wb_layout.setSpacing(4)
-
-        wb_layout.addWidget(ConfigSectionHeader(self.tr("Workbench")))
-
-        self._confirm_costly_checker = ConfigCheckBox(
-            self.tr("Confirm Costly Workbench Actions")
-        )
-        self._confirm_costly_checker.setToolTip(
-            self.tr(
-                "Ask for confirmation before workbench actions that call the AI (e.g. Prepare for translation)."
-            )
-        )
-        self._confirm_costly_checker.setChecked(bool(pcfg.workbench_confirm_costly))
-        self._confirm_costly_checker.toggled.connect(
-            lambda checked: setattr(pcfg, "workbench_confirm_costly", checked)
-        )
-        wb_row = QHBoxLayout()
-        wb_row.setSpacing(6)
-        wb_row.addWidget(self._confirm_costly_checker)
-        wb_row.addStretch()
-        wb_layout.addLayout(wb_row)
-
-        self.vlayout.insertWidget(4, self._workbench_section)
+        # run-time strategy); the workbench confirm toggle moved to
+        # Settings → Misc.
 
     # ── Public ───────────────────────────────────────────────────
 
@@ -761,49 +730,7 @@ class InpaintConfigPanel(ModuleConfigParseWidget):
         self.setInpainter = self.setModule
         # "Skip simple cases" moved to the run dialog; its initial state is
         # pushed into ``InpainterBase`` by ``ui/module_manager.py``.
-
-        # ── External editor (Photoshop) path ──
-        from utils.config import pcfg
-
-        self.vlayout.addWidget(ConfigSectionHeader(self.tr("External Editor")))
-        ps_path_layout = QHBoxLayout()
-        self.ps_path_edit = ConfigLineEdit()
-        self.ps_path_edit.setText(pcfg.drawpanel.photoshop_path)
-        self.ps_path_edit.setPlaceholderText(
-            self.tr("Photoshop.exe path (leave empty to auto-detect)")
-        )
-        self.ps_path_edit.editingFinished.connect(self._on_ps_path_changed)
-        self.ps_browse_btn = QPushButton(self.tr("Browse…"))
-        self.ps_browse_btn.clicked.connect(self._on_ps_browse)
-        ps_path_layout.addWidget(self.ps_path_edit)
-        ps_path_layout.addWidget(self.ps_browse_btn)
-        # Wrap in a sublock for consistent styling
-        from .configpanel import ConfigSubBlock
-
-        ps_path_sublock = ConfigSubBlock(
-            ps_path_layout,
-            name=self.tr("Photoshop Path"),
-            note=self.tr("<p>Path to <b>Photoshop.exe</b> for editing inpainted images externally. If empty, the application will attempt to locate Photoshop via the Windows Registry automatically.</p>"),
-        )
-        self.vlayout.addWidget(ps_path_sublock)
-
-    def _on_ps_path_changed(self):
-        from utils.config import pcfg
-
-        pcfg.drawpanel.photoshop_path = self.ps_path_edit.text()
-
-    def _on_ps_browse(self):
-        path, _ = QFileDialog.getOpenFileName(
-            self,
-            self.tr("Select Photoshop Executable"),
-            "",
-            self.tr("Executables (*.exe);;All Files (*)"),
-        )
-        if path:
-            from utils.config import pcfg
-
-            self.ps_path_edit.setText(path)
-            pcfg.drawpanel.photoshop_path = path
+        # The external-editor (Photoshop) path moved to Settings → Misc.
 
 
 class TextDetectConfigPanel(ModuleConfigParseWidget):

@@ -2447,6 +2447,51 @@ class ConfigPanel(Widget):
         risk_layout.addStretch()
         config_mgmt_layout.addWidget(risk_wrapper)
 
+        # External editor section — the canvas inpaint tool launches this
+        # executable to touch up a repair by hand.
+        config_mgmt_layout.addWidget(_section_header(self.tr("External Editor")))
+
+        self.ps_path_edit = ConfigLineEdit()
+        self.ps_path_edit.setText(pcfg.drawpanel.photoshop_path)
+        self.ps_path_edit.setPlaceholderText(
+            self.tr("Photoshop.exe path (leave empty to auto-detect)")
+        )
+        self.ps_path_edit.editingFinished.connect(self.on_ps_path_changed)
+        ps_browse_btn = QPushButton(self.tr("Browse…"))
+        ps_browse_btn.setObjectName("ConfigButton")
+        ps_browse_btn.clicked.connect(self.on_ps_browse)
+        ps_row = QWidget()
+        ps_row_layout = QHBoxLayout(ps_row)
+        ps_row_layout.setContentsMargins(0, 0, 0, 0)
+        ps_row_layout.setSpacing(6)
+        ps_row_layout.addWidget(self.ps_path_edit)
+        ps_row_layout.addWidget(ps_browse_btn)
+        config_mgmt_layout.addWidget(
+            ConfigFormRow(
+                self.tr("Photoshop Path"),
+                ps_row,
+                note=self.tr("<p>Path to <b>Photoshop.exe</b> for editing inpainted images externally. If empty, the application will attempt to locate Photoshop via the Windows Registry automatically.</p>"),
+            )
+        )
+
+        # Workbench section — the glossary/story workbench runs on AI, so its
+        # costly actions can ask for confirmation first.
+        config_mgmt_layout.addWidget(_section_header(self.tr("Workbench")))
+
+        self.confirm_costly_checker = ConfigCheckBox(
+            self.tr("Confirm Costly Workbench Actions")
+        )
+        self.confirm_costly_checker.setToolTip(
+            self.tr(
+                "Ask for confirmation before workbench actions that call the AI (e.g. Prepare for translation)."
+            )
+        )
+        self.confirm_costly_checker.setChecked(bool(pcfg.workbench_confirm_costly))
+        self.confirm_costly_checker.toggled.connect(
+            lambda checked: setattr(pcfg, "workbench_confirm_costly", checked)
+        )
+        config_mgmt_layout.addWidget(ConfigFormRow("", self.confirm_costly_checker))
+
         # Export section
         config_mgmt_layout.addWidget(_section_header(self.tr("Export Config")))
 
@@ -2504,7 +2549,9 @@ class ConfigPanel(Widget):
 
         # Build section tree with group headers
         module_header = self.configTable.addHeader(self.tr("Modules"))
-        self.configTable.addSection(module_header, self.tr("Module Actions"), "models", self.models_group)
+        # Label matches the page's own group title (``PanelGroupBox``), so the
+        # nav entry and the heading the user lands on say the same thing.
+        self.configTable.addSection(module_header, self.tr("Models"), "models", self.models_group)
         self.configTable.addSection(module_header, self.tr("Pipeline"), "pipeline", self.pipeline_page)
         self.configTable.addSection(module_header, self.tr("LLM Profile"), "llm_profile", self.llm_profiles_panel)
 
@@ -2576,6 +2623,20 @@ class ConfigPanel(Widget):
     def on_clip_overflow_changed(self):
         pcfg.clip_text_overflow = self.clip_overflow_checker.isChecked()
         self.clip_overflow_changed.emit()
+
+    def on_ps_path_changed(self):
+        pcfg.drawpanel.photoshop_path = self.ps_path_edit.text()
+
+    def on_ps_browse(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            self.tr("Select Photoshop Executable"),
+            self.ps_path_edit.text() or "",
+            self.tr("Executables (*.exe);;All Files (*)"),
+        )
+        if path:
+            self.ps_path_edit.setText(path)
+            pcfg.drawpanel.photoshop_path = path
 
     def on_export_config(self):
         """Export current configuration to a JSON file."""

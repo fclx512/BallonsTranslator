@@ -896,10 +896,6 @@
             <translation>模块</translation>
         </message>
         <message>
-            <source>Module Actions</source>
-            <translation>模块操作</translation>
-        </message>
-        <message>
             <source>Pipeline</source>
             <translation>管线</translation>
         </message>
@@ -1183,6 +1179,56 @@
             <source>Stroke color follows text color on creation</source>
             <translation>描边色在添加时取自文字反色</translation>
         </message>
+        <message>
+            <location filename="..\ui\configpanel.py" />
+            <source>External Editor</source>
+            <translation>外部编辑器</translation>
+        </message>
+        <message>
+            <location filename="..\ui\configpanel.py" />
+            <source>Photoshop Path</source>
+            <translation>Photoshop 路径</translation>
+        </message>
+        <message>
+            <location filename="..\ui\configpanel.py" />
+            <source>Photoshop.exe path (leave empty to auto-detect)</source>
+            <translation>Photoshop.exe 路径（留空则自动检测）</translation>
+        </message>
+        <message>
+            <location filename="..\ui\configpanel.py" />
+            <source>Browse…</source>
+            <translation>浏览…</translation>
+        </message>
+        <message>
+            <location filename="..\ui\configpanel.py" />
+            <source>Select Photoshop Executable</source>
+            <translation>选择 Photoshop 可执行文件</translation>
+        </message>
+        <message>
+            <location filename="..\ui\configpanel.py" />
+            <source>Executables (*.exe);;All Files (*)</source>
+            <translation>可执行文件 (*.exe);;所有文件 (*)</translation>
+        </message>
+        <message>
+            <location filename="..\ui\configpanel.py" />
+            <source>&lt;p&gt;Path to &lt;b&gt;Photoshop.exe&lt;/b&gt; for editing inpainted images externally. If empty, the application will attempt to locate Photoshop via the Windows Registry automatically.&lt;/p&gt;</source>
+            <translation>&lt;p&gt;用于外部编辑修复后图片的 &lt;b&gt;Photoshop.exe&lt;/b&gt; 路径。留空时程序会自动通过 Windows 注册表查找。&lt;/p&gt;</translation>
+        </message>
+        <message>
+            <location filename="..\ui\configpanel.py" />
+            <source>Workbench</source>
+            <translation>工作台</translation>
+        </message>
+        <message>
+            <location filename="..\ui\configpanel.py" />
+            <source>Confirm Costly Workbench Actions</source>
+            <translation>工作台耗时操作需确认</translation>
+        </message>
+        <message>
+            <location filename="..\ui\configpanel.py" />
+            <source>Ask for confirmation before workbench actions that call the AI (e.g. Prepare for translation).</source>
+            <translation>工作台中会调用 AI 的操作（如「一键准备」）执行前先弹窗确认。</translation>
+        </message>
     </context>
     <context>
         <name>DependencyDialog</name>
@@ -1293,17 +1339,6 @@
             <translation>没有打开的项目或图片。请先打开一个项目。</translation>
         </message>
         <message>
-            <source>Photoshop was not found.
-
-Please set the path in:
-Settings → Inpainter → Photoshop Path</source>
-            <translation>未找到 Photoshop。
-
-请前往：
-设置 → 图像修复 → Photoshop 路径
-配置 Photoshop 启动路径。</translation>
-        </message>
-        <message>
             <source>Failed to launch Photoshop. Please check the path in Settings.</source>
             <translation>启动 Photoshop 失败。请检查设置中的路径。</translation>
         </message>
@@ -1330,6 +1365,17 @@ Settings → Inpainter → Photoshop Path</source>
         <message>
             <source>Inpainting...</source>
             <translation>正在修复…</translation>
+        </message>
+        <message>
+            <source>Photoshop was not found.
+
+Please set the path in:
+Settings → App → Photoshop Path</source>
+            <translation>未找到 Photoshop。
+
+请前往：
+设置 → 应用 → Photoshop 路径
+配置 Photoshop 启动路径。</translation>
         </message>
     </context>
     <context>
@@ -1883,37 +1929,6 @@ Run detection + OCR to populate text blocks.</source>
             <location filename="..\ui\module_manager.py" />
             <source>Inpaint Failed.</source>
             <translation>修复失败</translation>
-        </message>
-    </context>
-    <context>
-        <name>InpaintConfigPanel</name>
-        <message>
-            <source>External Editor</source>
-            <translation>外部编辑器</translation>
-        </message>
-        <message>
-            <source>Photoshop.exe path (leave empty to auto-detect)</source>
-            <translation>Photoshop.exe 路径（留空则自动检测）</translation>
-        </message>
-        <message>
-            <source>Browse…</source>
-            <translation>浏览…</translation>
-        </message>
-        <message>
-            <source>Photoshop Path</source>
-            <translation>Photoshop 路径</translation>
-        </message>
-        <message>
-            <source>&lt;p&gt;Path to &lt;b&gt;Photoshop.exe&lt;/b&gt; for editing inpainted images externally. If empty, the application will attempt to locate Photoshop via the Windows Registry automatically.&lt;/p&gt;</source>
-            <translation>&lt;p&gt;用于外部编辑修复后图片的 &lt;b&gt;Photoshop.exe&lt;/b&gt; 路径。留空时程序会自动通过 Windows 注册表查找。&lt;/p&gt;</translation>
-        </message>
-        <message>
-            <source>Select Photoshop Executable</source>
-            <translation>选择 Photoshop 可执行文件</translation>
-        </message>
-        <message>
-            <source>Executables (*.exe);;All Files (*)</source>
-            <translation>可执行文件 (*.exe);;所有文件 (*)</translation>
         </message>
     </context>
     <context>
@@ -3801,9 +3816,6 @@ Orientation: {o}</source>
         </message>
     </context>
     <context>
-        <name>TextDetectConfigPanel</name>
-    </context>
-    <context>
         <name>TextPanel</name>
         <message>
             <location filename="..\ui\scenetext_manager.py" line="390" />
@@ -4023,18 +4035,6 @@ Orientation: {o}</source>
             <location filename="..\ui\module_parse_widgets.py" />
             <source>Manage…</source>
             <translation>管理…</translation>
-        </message>
-        <message>
-            <source>Ask for confirmation before workbench actions that call the AI (e.g. Prepare for translation).</source>
-            <translation>工作台中会调用 AI 的操作（如「一键准备」）执行前先弹窗确认。</translation>
-        </message>
-        <message>
-            <source>Confirm Costly Workbench Actions</source>
-            <translation>工作台耗时操作需确认</translation>
-        </message>
-        <message>
-            <source>Workbench</source>
-            <translation>工作台</translation>
         </message>
     </context>
     <context>

@@ -2,6 +2,37 @@
 
 > 此文档用于跨 agent 同步当日改动。仅保留最近 3 天的记录，每次在对应日期中末尾写入日志。
 
+## 2026-09-10
+
+### 设置面板管线页合并 + 运行窗口重做 + 杂项落位（三提交）
+
+**问题/需求：** 承接 2026-09-09 的调研结论：管线四页靠硬编码下标往基础布局里插杂项，四页骨架不一致（翻译页四个附加块全堆在 Parameters 标题上方、检测页复选框挤在模块下拉同一行、修复页附加项在参数下方）。用户拍板的方向：管线页**合并成一页**、页内用标签切换；模块选择交给底部栏（设置面板不再放）；常用管线开关搬进「运行」窗口（对齐上游「启用模块」网格）；搬剩的杂项并入 General 的 App 页。
+
+**改动要点：**
+
+- **管线页合并（`52d2d40`）**：`ui/configpanel.py::_build_pipeline_page` 用 `QTabBar` + `QStackedWidget` 承载四阶段，Modules 组导航 6 项 → 3 项（Module Actions / Pipeline / LLM Profile），全站 12 页 → 10 页。四个阶段面板**对象与信号链原样保留**（底部栏、`module_manager`、画布修复工具面板都持有引用），只经 `ui/module_parse_widgets.py::set_module_selector_visible(False)` 隐藏模块选择行、改为只读引擎名（`engine_label`）。`module_combobox` 只隐藏不删除——它仍是真值源。合并页整体不套 `_wrap_page`（否则标签栏随内容滚走），各标签内容单独 `_wrap_page` 并去掉左右留白。`focusOnDetect/OCR/Inpaint/Translator` 改为「选中 Pipeline + 切对应标签」，底部栏四个齿轮路径不变。删掉修复页 `showEvent`/`hideEvent` 往返搬运模块下拉的 hack；画布侧 `ui/drawingpanel.py::InpaintPanel` / `RectPanel` 改为在 `showEvent` 里显式点亮借来的下拉（不做显式隐藏——切工具时新面板的 show 可能先于旧面板的 hide）。
+- **运行窗口重做（`74b58b1`）**：内联在 `ui/mainwindow.py::run_imgtrans` 的约 400 行对话框抽成 `ui/run_pipeline_dialog.py`，按上游同名文件的形态重做——上半「启用模块」网格（每阶段 = 图标开关 + 模块下拉），下半各阶段折叠选项区（`ExpandingToolButton`）。阶段强调色取主题的 `@accentDetect`/`@accentOCR`/`@accentInpaint`/`@accentTranslate`（与 LLM Profile 徽章同一套），不移植上游硬编码调色板。模块下拉写回底部栏选择器（唯一真值源），不新增 ModuleManager 接口。搬入的选项：检测＝Keep Existing Lines、修复＝Skip simple cases、翻译＝源/目标语言 + 单块翻译模式 + LLM 上下文/术语表整块。保留 Render Only 批量渲染、页码 RangeSlider + All Pages、术语表状态指示、Run without update textstyle、清空二次确认。**刻意不移植**：无边框外壳与 `DialogCloseButton`、每阶段 hover 齿轮（运行窗口是模态的，无法在其上拉起设置浮层；底部栏齿轮已承担该入口）、上游 `page_range_progress`。资源补 4 个图标 + `RunPipeline*` QSS。`InpainterBase.check_need_inpaint` 初值改由 `module_manager` 从 pcfg 直接推入；翻译器异步加载完成后经 `_sync_run_dialog_translator` 刷新语言下拉。
+- **杂项落位（本提交）**：从管线页搬出的两项直接并入 General 的 **App 页**，不单设暂存页——`Misc` 这种名字会自己招来下一条无家可归的选项。App 页成为 Updates / External Editor / Workbench / Export Config / Import Config 五节，General 组 7 → 6 页、全站 10 → 9 页。Photoshop 路径（从修复页搬来，`ConfigPanel.ps_path_edit`）归 App 的 External Editor 节，工作台确认开关（从翻译页搬来，`ConfigPanel.confirm_costly_checker`）归 Workbench 节；`ui/drawingpanel.py` 的「未找到 Photoshop」提示同步改指 `Settings → App → Photoshop Path`。导航首项 `Module Actions` → `Models`（与该页自己的 `PanelGroupBox` 标题一致）。新增 `tests/test_settings_app_page.py`。
+- **i18n**：新增 `RunPipelineDialog` 上下文 33 条（译文复用既有条目）、ConfigPanel/DrawingPanel 补 11 条，清掉移出产生的 41 条孤儿，qm 重编。
+- **测试**：新增 `tests/test_pipeline_page_merge.py`（8 例）、`tests/test_run_pipeline_dialog.py`（13 例）、`tests/test_settings_app_page.py`（6 例）；冒烟测试补 `RunPipelineDialog` 实例化。`verify.py --full` 全绿。
+
+**涉及文件：** `ui/configpanel.py`、`ui/module_parse_widgets.py`、`ui/run_pipeline_dialog.py`（新）、`ui/drawingpanel.py`、`ui/mainwindow.py`、`ui/module_manager.py`、`config/stylesheet.css`、`icons/text_disabled.svg` 等 4 个图标（新）、`translate/zh_CN.ts`、`translate/zh_CN.qm`、`tests/test_pipeline_page_merge.py`（新）、`tests/test_run_pipeline_dialog.py`（新）、`tests/test_settings_app_page.py`（新）、`tests/test_startup_imports.py`、`AGENTS.md`、`docs/技术实现/设置面板概述.md`、`docs/基础速查/设置面板排版思路.md`
+
+### 设置面板普查整理 + 运行窗口字号对齐（三提交）
+
+**问题/需求：** 用户实机验收三提交后反馈「运行界面的拓展管线功能项的**字号**需要对上游」，并要求在继续下一步前先改掉；随后要求对设置面板做**一次全面普查**，据此判断如何整理与编排。
+
+**改动要点：**
+
+- **运行窗口字号对齐**：折叠区内的标签与折叠头本来就在 QSS 里钉了上游的 12px，但区内的下拉落到了全局 `QComboBox` 的 14px，比同一行标签大一圈；复选框与数值框则未显式钉住，靠应用字体 9pt 凑巧对齐。补一组 `QWidget#RunPipelineSettingsSection` 规则（下拉 12px 且收到 20px 高、复选框 12px + 12px 指示器、数值框 12px），对齐上游同名规则。**顺带修一个离屏渲染才暴露的真 bug**：`ui/run_pipeline_dialog.py::_build_translate_options` 把「Source」标签 `addWidget` 到了整页布局而不是它自己那一行，实际渲染成 Translation 折叠区下方一行孤立的 Source；已改回 `lang_layout`，并补回归测试（断言页布局里没有裸 `QLabel`、Source 标签与下拉同行）。
+- **普查结论**（用户实机验收第一批后要求对设置面板做一次全面普查）：页面骨架本身是对的，问题集中在——Typesetting/App 有三处手写 `setContentsMargins` 没走 `ConfigFormRow`；另有三个死/错项（见后两条提交）。**明确不搬**：设置在面板外的大批持久项（画笔粗细/裁剪比例/搜索选项/暗色模式等）就地调整更自然，收进设置页只会把一次点击变成「开面板→找页→改→关」，违背本分支「交互路径越短」。设置面板只收「配置一次、之后不常改」的项——这条是持久取向。
+- **子行排版归一 + 清死项**：子选项缩进统一到一个写法（`ConfigFormRow("", 控件)` 套 24px 缩进 wrapper，Interface 页既有做法），替换 Typesetting 与 App 页各一处手写的 `QHBoxLayout` + 写死 158/134；App 页 Developer channel 行删掉与常显 `⚠` 行逐字重复的 `?` 备注；Typesetting 的 `Quick insert characters` 独立成「Quick Symbol Palette」节。清项：删零引用字段 `pcfg.expand_font_format_panel`（`nested_dataclass` 忽略多余键，旧 config.json 不受影响）、修两处把工作台确认开关指向已不存在的「翻译器页」的注释、补上术语面板「不再提示」后回写设置页复选框的同步（`ConfigPanel.setupConfig` 只在启动跑一次，不回写会停在旧值）。
+- **审计登记表新增 `dormant_symbols`**：普查发现 `ui/context_menu_config.py` 的右键菜单自定义对话框全仓无实例化（用户拍板本轮不接线也不删）。原有 `suspended` 是**文件级**契约，登记不了活文件里的一个符号，于是新增第三类（键 `路径::符号`）：文件里必须仍定义该符号，且定义文件之外全仓不得引用——一旦有人接线，检查失败并要求撤销登记，与 `deprecated` 的「残留引用必须清零」互为镜像。
+
+**涉及文件：** `ui/run_pipeline_dialog.py`、`ui/configpanel.py`、`ui/drawingpanel.py`、`ui/glossary_agent_panel.py`、`ui/module_parse_widgets.py`、`utils/config.py`、`config/stylesheet.css`、`translate/zh_CN.ts`、`translate/zh_CN.qm`、`scripts/check_audit.py`、`scripts/audit_registry.json`、`.agents/skills/audit-docs/SKILL.md`、`tests/test_run_pipeline_dialog.py`、`tests/test_settings_app_page.py`（新）、`docs/技术实现/设置面板概述.md`、`docs/基础速查/设置面板排版思路.md`
+
+---
+
 ## 2026-09-09
 
 ### 设置面板 LLM Profile 页改卡片式（A 方案·精简版）

@@ -2164,7 +2164,7 @@ class DrawingPanel(Widget):
                 pcfg.drawpanel.photoshop_path = found
             else:
                 create_info_dialog(
-                    self.tr("Photoshop was not found.\n\nPlease set the path in:\nSettings → Inpainter → Photoshop Path")
+                    self.tr("Photoshop was not found.\n\nPlease set the path in:\nSettings → App → Photoshop Path")
                 )
                 return
 
