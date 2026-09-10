@@ -156,6 +156,28 @@ class RunPipelineDialogTest(unittest.TestCase):
         combo.setCurrentText("en")
         self.assertEqual(seen, ["en"])
 
+    def test_translate_labels_stay_inside_their_rows(self):
+        """Regression: a stray "Source" label used to land on the page itself.
+
+        ``_build_translate_options`` added it to the page layout instead of the
+        combo's row, so it rendered as an orphan line under the whole section.
+        """
+        from qtpy.QtWidgets import QLabel
+
+        row = self.dialog.source_combobox.parentWidget()
+        self.assertIn(
+            "Source", [label.text() for label in row.findChildren(QLabel)]
+        )
+
+        page = self.dialog.stack.widget(0)
+        page_layout = page.layout()
+        strays = [
+            page_layout.itemAt(i).widget()
+            for i in range(page_layout.count())
+            if isinstance(page_layout.itemAt(i).widget(), QLabel)
+        ]
+        self.assertEqual(strays, [])
+
     # ── page range / modes ───────────────────────────────────────────
 
     def test_page_filter_all_pages_is_none(self):

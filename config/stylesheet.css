@@ -2552,3 +2552,28 @@ QLabel#RunPipelineSubsectionHeader {
     font-size: 12px;
     font-weight: 600;
 }
+
+/* 折叠区内的选项控件。上游把这一组也钉在 12px
+   （BallonsTranslator/resources/stylesheet.css 的
+   QWidget#RunPipelineSettingsSection 若干条），否则下拉会吃到全局
+   QComboBox 的 14px，比同一行 12px 的标签大一圈。
+   下拉同时按上游收到 20px 高，与标签行齐平。 */
+QWidget#RunPipelineSettingsSection QCheckBox {
+    font-size: 12px;
+}
+
+QWidget#RunPipelineSettingsSection QCheckBox::indicator {
+    width: 12px;
+    height: 12px;
+}
+
+QWidget#RunPipelineSettingsSection QComboBox {
+    height: 20px;
+    min-height: 20px;
+    max-height: 20px;
+    font-size: 12px;
+}
+
+QWidget#RunPipelineSettingsSection QSpinBox {
+    font-size: 12px;
+}

@@ -599,7 +599,7 @@ class RunPipelineDialog(QDialog):
         lang_layout = QHBoxLayout(lang_row)
         lang_layout.setContentsMargins(0, 0, 0, 0)
         lang_layout.setSpacing(6)
-        layout.addWidget(self._setting_label(self.tr("Source")))
+        lang_layout.addWidget(self._setting_label(self.tr("Source")))
         self.source_combobox = ConfigComboBox(fix_size=False)
         self.source_combobox.setFixedWidth(MODULE_SELECTOR_WIDTH)
         self.source_combobox.currentTextChanged.connect(
