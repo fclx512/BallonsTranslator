@@ -224,6 +224,11 @@
             ]
         }
     },
+    "dormant_symbols": {
+        "ui/context_menu_config.py::ContextMenuCustomizeDialog": {
+            "note": "右键菜单顺序自定义对话框（2026-09-10 登记的休眠符号）：2026-09-10 普查发现全仓无实例化，用户拍板本轮不接线也不删。右键菜单顺序仍由 pcfg.context_menu_order 生效，只是没有可达的编辑入口；接入入口（例如挂到设置面板 Quick Menus 页）后请撤销此条登记。"
+        }
+    },
     "suspended": {
         "ui/text_engine/formatting/panel.py": {
             "note": "上游休眠拷贝：仅被同休眠的 editing/manager.py 引用，未接主 UI（见 上游v1.5.12移植_完成记录.md 持久分歧）"

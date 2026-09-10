@@ -9,7 +9,10 @@
    scene_textlayout 教训）。
 2. **suspended（休眠）**——登记的文件必须存在；`ui/` 内（text_engine 之外，
    即主 UI）不得 import 它：防休眠代码被悄悄唤醒产生维护负担。
-3. **git 已删但未登记**——仅提示不失败：删除要"声明"（登记 deprecated）才
+3. **dormant_symbols（休眠符号）**——键为 `路径::符号`（类/函数名，用于
+   整份文件仍是活体、只有某个符号无入口的情况）：该文件里必须仍定义这个
+   符号，且**定义文件之外全仓不得引用它**——一旦有人接线，登记必须撤销。
+4. **git 已删但未登记**——仅提示不失败：删除要"声明"（登记 deprecated）才
    纳入残留审计；批次进行中的删除不阻塞。
 
 退出码：0 全部通过（可能有提示行）；1 任一检查失败。
@@ -122,6 +125,27 @@ def deprecated_refs(path, allowed_mentions):
     return hits
 
 
+def dormant_symbol_refs(path, symbol, allowed_mentions):
+    """返回别处对该休眠符号的引用 [(rel, lineno)]（定义文件自身不算）。"""
+    name_re = re.compile(
+        rf"(?<![A-Za-z0-9_.]){re.escape(symbol)}(?![A-Za-z0-9_])"
+    )
+    owner = path.replace("\\", "/")
+    allowed = set(allowed_mentions or ())
+    hits = []
+    for p, rel in corpus_files():
+        if rel == owner or rel in allowed:
+            continue
+        try:
+            text = p.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            continue
+        for lineno, line in enumerate(text.splitlines(), 1):
+            if name_re.search(line):
+                hits.append((rel, lineno))
+    return hits
+
+
 def suspended_imports(path):
     """返回主 UI 对休眠文件 path 的 import 引用 [(rel, lineno, token)]。"""
     parts = path.replace("\\", "/").split("/")
@@ -202,7 +226,43 @@ def main():
                 f"{path}: 被主 UI 引用 → {rel}:{lineno}  `{tok}`（休眠代码被唤醒？）"
             )
 
-    # 3. git 已删未登记：提示，不阻塞（批次进行中的删除不纳入审计）
+    # 3. dormant_symbols：符号必须仍定义在原文件，且全仓（定义文件之外）
+    #    不得有引用——一旦有人接线，登记就该撤销（与 deprecated 的
+    #    「残留引用必须清零」互为镜像）。
+    dormant_symbols = registry.get("dormant_symbols", {})
+    for key in sorted(dormant_symbols):
+        path, sep, symbol = key.partition("::")
+        if not sep or not symbol:
+            problems.append(f"{key}: 登记格式应为 `路径::符号`")
+            continue
+        target = ROOT / path
+        if not target.is_file():
+            problems.append(
+                f"{key}: 文件不存在（整份删除应移到 deprecated）"
+            )
+            continue
+        try:
+            text = target.read_text(encoding="utf-8", errors="replace")
+        except Exception as exc:
+            problems.append(f"{key}: 文件不可读 ({exc})")
+            continue
+        if not re.search(
+            rf"^\s*(?:class|def)\s+{re.escape(symbol)}\b", text, re.M
+        ):
+            problems.append(
+                f"{key}: 文件里找不到该符号定义（改名/删除后请同步登记）"
+            )
+            continue
+        info = dormant_symbols[key] or {}
+        for rel, lineno in dormant_symbol_refs(
+            path, symbol, info.get("allowed_mentions")
+        ):
+            problems.append(
+                f"{key}: 被 {rel}:{lineno} 引用——休眠符号已接线？"
+                "接线后请从 dormant_symbols 撤销登记"
+            )
+
+    # 4. git 已删未登记：提示，不阻塞（批次进行中的删除不纳入审计）
     for d in git_deleted_not_registered(registry):
         notes.append(
             f"⚠ 未登记删除 {d}：在 audit_registry.json 登记 deprecated 后启用残留审计"
@@ -217,7 +277,8 @@ def main():
         sys.exit(1)
 
     print(
-        f"✅ audit: 登记表 {len(deprecated)} 居删 / {len(suspended)} 休眠 检查通过"
+        f"✅ audit: 登记表 {len(deprecated)} 居删 / {len(suspended)} 休眠 / "
+        f"{len(dormant_symbols)} 休眠符号 检查通过"
     )
     for n in notes:
         print(n)
