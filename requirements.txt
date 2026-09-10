@@ -1,8 +1,11 @@
 # ==============================================================================
 # Project dependencies -- installed by launch.py via pip install -r requirements.txt
 # Canonical declaration: pyproject.toml -> [project].dependencies (PEP 621).
-# Optional GPU packages (torch, transformers, etc.) are listed in
-# pyproject.toml [project.optional-dependencies].gpu -- install those manually.
+# Heavy model-inference packages are NOT listed here; install what you need:
+#   torch / torchvision / transformers / diffusers / ultralytics
+# ultralytics (YOLO text detectors) is declared per-module via
+# requires_packages, so the app installs it on demand when you pick such a
+# detector.  See pyproject.toml [project.optional-dependencies].
 # ==============================================================================
 # GPU PyTorch: https://pytorch.org/
 
@@ -12,16 +15,17 @@ pillow>=10.0,<11
 PyQt6-Qt6>=6.8.1
 PyQt6>=6.8.1
 numpy
-# PyTorch and its dependencies are optional.
-# Install them manually for GPU-accelerated local models:
+# Local models need PyTorch, installed separately:
 #   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+# YOLO detectors additionally need ultralytics:
+#   pip install ultralytics
 #   pip install transformers diffusers
-ultralytics>=8.4.14
 tqdm
 opencv-python>=4.10.0.84; sys_platform == 'win32' or sys_platform == 'linux' or sys_platform == 'darwin'
 shapely
 pyclipper
 einops
+fonttools
 spacy-pkuseg
 termcolor
 qtpy

@@ -63,7 +63,6 @@ SOURCE_UPDATE_FILES = (
     # gitignored config.json / custom_themes.json survive an update.
     "config/config.json.example",
     "config/palette.json",
-    "config/requirements_core.txt",
     "config/stylesheet.css",
     "config/themes.json",
 )

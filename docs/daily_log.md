@@ -31,6 +31,22 @@
 
 **涉及文件：** `ui/run_pipeline_dialog.py`、`ui/configpanel.py`、`ui/drawingpanel.py`、`ui/glossary_agent_panel.py`、`ui/module_parse_widgets.py`、`utils/config.py`、`config/stylesheet.css`、`translate/zh_CN.ts`、`translate/zh_CN.qm`、`scripts/check_audit.py`、`scripts/audit_registry.json`、`.agents/skills/audit-docs/SKILL.md`、`tests/test_run_pipeline_dialog.py`、`tests/test_settings_app_page.py`（新）、`docs/技术实现/设置面板概述.md`、`docs/基础速查/设置面板排版思路.md`
 
+### 部署可用性修复（用户报「源码包双击打不开」）+ 依赖声明理清
+
+**问题/需求：** 有用户按说明下载源码包 + CPU 依赖包、解压后**双击终端打不开**（窗口一闪而过）。该用户能正常启动上游，基本排除微软运行库缺失。开发环境数月未验证过可部署性，遂做一次系统排查——查出四个独立缺陷，其中三个会直接导致启动失败。
+
+**改动要点：**
+
+- **根因一：`.bat` 是 LF 行尾。** 本仓库自 2026-05-06 分叉（`6649de10`）后未再合并上游，而 `.gitattributes` 是上游 2026-07-16 才加入的，本分支谱系里从来没有该文件。缺了它，Windows 上 git 把 `launch.bat` 按 LF 存进 blob，GitHub 源码包（`git archive`）解出来也是 LF；cmd.exe 读 LF-only 批处理会解析错位后中止，且来不及执行到 `pause`，窗口一闪即关。恢复上游同款 `.gitattributes`（blob 与 `upstream-tmp/dev` 逐字节一致）：`* text=auto eol=lf`，`.bat`/`.cmd` 强制 `eol=crlf`。
+- **根因二：安装路径含括号。** 路径里有 `(` `)` 时，`launch.bat` 的 `echo ... %PYTHON%` 在括号块内被 cmd 解析期截断（`%VAR%` 在整块解析时展开，`)` 提前闭合块）→ 退出码 255 且零输出。三处改用延迟展开 `!PYTHON!`。
+- **根因三：更新器会把 `.bat` 改回 LF。** `raw.githubusercontent.com` 返回的是仓储 blob（`eol=crlf` 只作用于 checkout/archive 输出，不影响 blob 存储），manifest 增量更新下载 `launch.bat` 后按原样写入即变回 LF，把本来能用的启动器静默改坏——即使源码包修好了，装完第一次更新又会复发。`scripts/check_update.py` 新增 `_as_crlf()`，写盘前对 `.bat`/`.cmd` 强制 CRLF；新增 `tests/test_update_eol.py` 锁死该契约（含幂等性与后缀作用域，已验证修复前该用例会失败）。
+- **根因四：`download_models.bat` 存量损坏。** if 括号块里写了裸 `(` `)` 且不结行，第 24 行即 parse error 退出，任何模型都下载不了（与本次报障无关，但同属「照说明操作走不通」）。5 处转义为 `^(` `^)`。
+- **行尾口径统一：** 索引里残留两条 CRLF blob（`modules/textdetector/panel_finder.py`、`utils/merger.py`，`.gitattributes` 缺失期的历史遗留），`git add --renormalize` 一并规范化为 LF，使全仓文本文件口径一致。这两个文件在本提交里是**纯行尾改动**，无内容变化。
+- **依赖声明理清：** `ultralytics` 从 `requirements.txt` 移除（它会连带拉 torch + matplotlib），改为在 `modules/textdetector/detector_ysg.py` 按模块声明两处——`dependencies` 供懒加载 AST 扫描（模块管理对话框据此提示安装），`requires_packages` 供 `modules/base.py::BaseModule.ensure_dependencies` 在 `load_model` 与 `launch.py` 的模型文件回退路径读取。用户拍板「用源码的要么有一键包要么自己知道需要什么，需要给自由度」，故不塞进必修表。`pyproject.toml` 补 `fonttools`（原先是靠 ultralytics 传递引入，去掉后会失去来源）。删除 `scripts/build_portable.py`（产出的 `python_embeded/` + `run.bat` 与实际分发的 `ballontrans_pylibs_win/` + `launch.bat` 布局早已不符、拷贝清单漏 `icons/` 与 `scripts/`，且整目录拷贝 `config/` 会把含 API 密钥的 `config/config.json` 打进包里）与 `config/requirements_core.txt`（唯一生成方就是被删的脚本）。两个删除均已登记 `scripts/audit_registry.json` 的 `deprecated`。
+- **CPU 依赖包补齐：** 分发的 `ballontrans_pylibs_win` 缺 `numba`/`llvmlite`（`ui/text_engine/effects/paint_numba.py`、`ui/text_engine/transforms/grid_numba.py` 的加速路径，缺失时退回纯 NumPy），已补进依赖包目录，`docs/基础速查/依赖库说明.md` 的手动搭建步骤相应加第四批。
+
+**涉及文件：** `.gitattributes`（新增，内容同上游）、`launch.bat`、`scripts/download_models.bat`、`scripts/check_update.py`、`tests/test_update_eol.py`（新）、`requirements.txt`、`pyproject.toml`、`modules/textdetector/detector_ysg.py`、`scripts/build_portable.py`（删）、`config/requirements_core.txt`（删）、`scripts/check_docs.py`、`utils/updater.py`、`scripts/audit_registry.json`、`docs/基础速查/依赖库说明.md`、`docs/项目概述.md`、`scripts/README.md`、`modules/textdetector/panel_finder.py`、`utils/merger.py`（后两者仅行尾）
+
 ---
 
 ## 2026-09-09

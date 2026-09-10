@@ -133,6 +133,17 @@ class YSGYoloDetector(TextDetectorBase):
         },
     }
 
+    # ultralytics is not a core requirement (it pulls torch + matplotlib).
+    # Two declarations on purpose, both read by different call sites:
+    #   dependencies      -- surfaced by the lazy AST scan, read by the module
+    #                        manager dialog to offer installing it
+    #   requires_packages -- read by BaseModule.ensure_dependencies() at
+    #                        load_model() and by launch.py's model-file
+    #                        fallback (which downgrades to the "none" detector
+    #                        when the package cannot be installed)
+    dependencies = ["ultralytics"]
+    requires_packages = ["ultralytics"]
+
     _load_model_keys = {"model"}
     download_file_list = [
         {

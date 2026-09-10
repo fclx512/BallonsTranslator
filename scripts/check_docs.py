@@ -56,7 +56,7 @@ FILE_EXTS = {
 # 仓库根下允许以裸文件名引用的文件（无需目录前缀）
 ROOT_FILES = {
     "launch.py", "launch.bat", "pyproject.toml", "README.md", "AGENTS.md",
-    "requirements.txt", "requirements_core.txt", ".gitignore",
+    "requirements.txt", ".gitignore",
 }
 
 # 跨仓库（上游 BallonsTranslator）路径前缀 —— 本仓库不存在，跳过

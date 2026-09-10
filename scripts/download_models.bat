@@ -22,20 +22,20 @@ set "PS_DOWNLOAD=powershell -Command "$wc = New-Object System.Net.WebClient; try
 set "URL=https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3"
 set "FILE=%MODELS_DIR%\comictextdetector.pt"
 if not exist "%FILE%" (
-    echo [1/6] 下载 ComicTextDetector (torch) ...
+    echo [1/6] 下载 ComicTextDetector ^(torch^) ...
     powershell -Command "$wc = New-Object System.Net.WebClient; $wc.DownloadFile('%URL%/comictextdetector.pt', '%FILE%')"
     if %ERRORLEVEL% equ 0 (echo   ✓ 完成) else (echo   ✗ 失败 & exit /b 1)
-) else (echo [1/6] ComicTextDetector (torch) — 已存在，跳过)
+) else (echo [1/6] ComicTextDetector ^(torch^) — 已存在，跳过)
 
 :: ============================================
 :: 2. ComicTextDetector (ONNX, CPU用)
 :: ============================================
 set "FILE=%MODELS_DIR%\comictextdetector.pt.onnx"
 if not exist "%FILE%" (
-    echo [2/6] 下载 ComicTextDetector (ONNX) ...
+    echo [2/6] 下载 ComicTextDetector ^(ONNX^) ...
     powershell -Command "$wc = New-Object System.Net.WebClient; $wc.DownloadFile('%URL%/comictextdetector.pt.onnx', '%FILE%')"
     if %ERRORLEVEL% equ 0 (echo   ✓ 完成) else (echo   ✗ 失败 & exit /b 1)
-) else (echo [2/6] ComicTextDetector (ONNX) — 已存在，跳过)
+) else (echo [2/6] ComicTextDetector ^(ONNX^) — 已存在，跳过)
 
 :: ============================================
 :: 3. MIT48pxCTC OCR（从 zip 解压）
@@ -72,7 +72,7 @@ if not exist "%FILE%" (
 :: ============================================
 set "FILE=%MODELS_DIR%\lama_large_512px.ckpt"
 if not exist "%FILE%" (
-    echo [6/6] 下载 LaMa Large 512px (HuggingFace, ~195MB) ...
+    echo [6/6] 下载 LaMa Large 512px ^(HuggingFace, ~195MB^) ...
     powershell -Command "$wc = New-Object System.Net.WebClient; $wc.DownloadFile('https://huggingface.co/dreMaz/AnimeMangaInpainting/resolve/main/lama_large_512px.ckpt', '%FILE%')"
     if %ERRORLEVEL% equ 0 (echo   ✓ 完成) else (echo   ✗ 失败 & exit /b 1)
 ) else (echo [6/6] LaMa Large 512px — 已存在，跳过)

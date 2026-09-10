@@ -118,6 +118,20 @@ def _read_local_manifest() -> dict | None:
 # ── Manifest-based delta update ─────────────────────────────────────
 
 
+# raw.githubusercontent.com serves the stored blob, and git normalises text
+# files to LF on commit — `eol=crlf` only affects checkout and archive output.
+# cmd.exe cannot parse an LF-only batch file, so a delta update would silently
+# brick the launcher; force CRLF back on the way in.
+_CRLF_SUFFIXES = (".bat", ".cmd")
+
+
+def _as_crlf(path: str, data: bytes) -> bytes:
+    """Return *data* with CRLF line endings if *path* is a batch file."""
+    if not path.lower().endswith(_CRLF_SUFFIXES):
+        return data
+    return data.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+
+
 def _download_manifest_update(remote_sha: str) -> bool:
     """Download changed files via manifest comparison.
 
@@ -189,7 +203,7 @@ def _download_manifest_update(remote_sha: str) -> bool:
         file_url = f"{RAW_URL}/{path}"
         try:
             data, _ = _http_get(file_url)
-            dest.write_bytes(data)
+            dest.write_bytes(_as_crlf(path, data))
             downloaded += 1
         except Exception as e:
             failed.append(path)

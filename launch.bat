@@ -32,10 +32,10 @@ set "PYTHON=%~dp0ballontrans_pylibs_win\python.exe"
 if exist "%PYTHON%" (
     "%PYTHON%" -c "" >nul 2>&1
     if !ERRORLEVEL! == 0 (
-        echo [OK] Using embedded Python: %PYTHON%
+        echo [OK] Using embedded Python: !PYTHON!
         goto :python_found
     ) else (
-        echo [WARN] Found embedded Python at %PYTHON%
+        echo [WARN] Found embedded Python at !PYTHON!
         echo [WARN]   but it failed to run (exit code: !ERRORLEVEL!^).
         echo [WARN]   Common causes:
         echo [WARN]     - Missing VC++ Redistributable 2015-2022
@@ -46,7 +46,7 @@ if exist "%PYTHON%" (
         echo.
     )
 ) else (
-    echo [WARN] Embedded Python not found at: %PYTHON%
+    echo [WARN] Embedded Python not found at: !PYTHON!
     echo [WARN]   Expected directory structure:
     echo [WARN]     BallonsTranslator-lite\
     echo [WARN]     ├── launch.bat

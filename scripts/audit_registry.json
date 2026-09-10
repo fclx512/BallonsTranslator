@@ -78,7 +78,13 @@
             "note": "2026-08-27 删除：上游遗留的 detector 单块调试脚本（blk_list[:1] hack），零引用"
         },
         "scripts/build_win.bat": {
-            "note": "2026-08-27 删除：Nuitka exe 路线废弃，实际发版走 build_portable.py 便携包；需要时从 git 历史恢复"
+            "note": "2026-08-27 删除：Nuitka exe 路线废弃；需要时从 git 历史恢复"
+        },
+        "scripts/build_portable.py": {
+            "note": "2026-09-10 删除：便携版打包脚本与实际发行方式脱节——产出 python_embeded/ + run.bat（现行布局是 ballontrans_pylibs_win/ + launch.bat），复制清单缺 icons/、scripts/、requirements.txt，且整目录复制 config/ 会把含 API key 的 config.json 打进发行包。依赖包改由 docs/基础速查/依赖库说明.md 的手动步骤维护"
+        },
+        "config/requirements_core.txt": {
+            "note": "2026-09-10 删除：唯一生成者（便携版打包脚本）已删，内容与 requirements.txt 重复；核心依赖清单统一以 requirements.txt 与 pyproject.toml 为准"
         },
         "scripts/render_sync_probe.py": {
             "note": "2026-08-27 迁移为 tests/test_render_sync.py（pytest 化），删除 scripts 下原文件"
