@@ -1982,8 +1982,10 @@ class ConfigPanel(Widget):
         )
         _make_preset_row(self.tr("Opacity:"), "opacity_presets", ts_layout)
 
-        # Quick insert characters — feeds the Quick Symbol palette's custom
-        # section (opened with the quick-symbol shortcut while editing text).
+        # Quick Symbol palette — its own section: the character list has
+        # nothing to do with the dropdown presets above.
+        ts_layout.addWidget(_section_header(self.tr("Quick Symbol Palette")))
+
         self.quick_insert_characters_edit = ConfigLineEdit()
         self.quick_insert_characters_edit.setText(pcfg.quick_insert_characters)
         self.quick_insert_characters_edit.setFixedWidth(CONFIG_COMBOBOX_LONG)
@@ -2071,16 +2073,21 @@ class ConfigPanel(Widget):
         self.halfwidth_horizontal_checker.stateChanged.connect(
             self.on_halfwidth_corner_bracket_horizontal_changed
         )
+        # Child row: 24px hierarchy indent on top of ConfigFormRow's control
+        # column (16 margin + 110 label + 8 spacing = 134), so the checkbox
+        # lines up with the parent's control. Same idiom as the Interface
+        # page's "also fit when switching pages" sub-option.
+        self._halfwidth_horizontal_sublock = ConfigFormRow(
+            "", self.halfwidth_horizontal_checker
+        )
+        self._halfwidth_horizontal_sublock.setVisible(
+            pcfg.halfwidth_jp_corner_brackets
+        )
         halfwidth_horizontal_wrapper = QWidget()
-        # Indent the sub-option under the parent's control column
-        # (16 margin + 110 label + 8 spacing = 134) plus a 24px hierarchy
-        # indent so it reads as a child row. Margins must go on the layout,
-        # not the widget, or they are lost before the layout exists.
-        hw_layout = QHBoxLayout(halfwidth_horizontal_wrapper)
-        hw_layout.setContentsMargins(158, 0, 0, 4)
-        hw_layout.addWidget(self.halfwidth_horizontal_checker)
-        hw_layout.addStretch()
-        self._halfwidth_horizontal_sublock = halfwidth_horizontal_wrapper
+        hw_layout = QVBoxLayout(halfwidth_horizontal_wrapper)
+        hw_layout.setContentsMargins(24, 0, 0, 0)
+        hw_layout.addWidget(self._halfwidth_horizontal_sublock)
+        self._halfwidth_horizontal_sublock_wrapper = halfwidth_horizontal_wrapper
         halfwidth_horizontal_wrapper.setVisible(
             pcfg.halfwidth_jp_corner_brackets
         )
@@ -2418,11 +2425,12 @@ class ConfigPanel(Widget):
         self.check_commit_btn = QPushButton(self.tr("Check commit updates"))
         self.check_commit_btn.setObjectName("ConfigButton")
         self.check_commit_btn.clicked.connect(self.check_commit_update)
+        # No ``?`` note here: the always-visible warning line below says the
+        # same thing, and repeating it behind a tooltip only hides it.
         config_mgmt_layout.addWidget(
             ConfigFormRow(
                 self.tr("Developer channel:"),
                 self.check_commit_btn,
-                note=self.tr("<p>Check for the latest commit (unverified developer changes). Not guaranteed to work on every device.</p>"),
             )
         )
 
@@ -2438,13 +2446,11 @@ class ConfigPanel(Widget):
         commit_risk.setStyleSheet(
             f"color: {get_theme_color(key='@warningColor').name()}; font-size: 12px;"
         )
+        risk_row = ConfigFormRow("", commit_risk)
         risk_wrapper = QWidget()
-        # Align with the control column of ConfigFormRow
-        risk_wrapper.setContentsMargins(134, 0, 16, 4)
-        risk_layout = QHBoxLayout(risk_wrapper)
-        risk_layout.setContentsMargins(0, 0, 0, 0)
-        risk_layout.addWidget(commit_risk)
-        risk_layout.addStretch()
+        risk_layout = QVBoxLayout(risk_wrapper)
+        risk_layout.setContentsMargins(24, 0, 0, 0)
+        risk_layout.addWidget(risk_row)
         config_mgmt_layout.addWidget(risk_wrapper)
 
         # External editor section — the canvas inpaint tool launches this
@@ -3049,6 +3055,7 @@ class ConfigPanel(Widget):
         self.halfwidth_horizontal_checker.setEnabled(bool(state))
         self.halfwidth_horizontal_checker.setVisible(bool(state))
         self._halfwidth_horizontal_sublock.setVisible(bool(state))
+        self._halfwidth_horizontal_sublock_wrapper.setVisible(bool(state))
         self._apply_halfwidth_corner_bracket_settings()
 
     def on_halfwidth_corner_bracket_horizontal_changed(self, state: int):

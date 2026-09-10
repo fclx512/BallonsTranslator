@@ -689,7 +689,8 @@ class GlossaryAgentPanel(QWidget):
     def _prepare_confirmed(self) -> bool:
         """耗时/耗费操作的显式确认:说明将做的事与 API 花销,用户批准后
         才执行。勾选「不再提示」写入 pcfg.workbench_confirm_costly=False
-        (立即落盘),可在设置面板翻译器页重新开启。"""
+        (立即落盘),可在设置面板「应用 → Workbench」重新开启——写入的同
+        时回写那边的复选框,否则设置页会停在启动时的旧值。"""
         from utils.config import pcfg, save_config
 
         if not pcfg.workbench_confirm_costly:
@@ -726,7 +727,24 @@ class GlossaryAgentPanel(QWidget):
         if dont_ask.isChecked():
             pcfg.workbench_confirm_costly = False
             save_config()
+            self._sync_confirm_costly_checkbox()
         return True
+
+    def _sync_confirm_costly_checkbox(self) -> None:
+        """Mirror "don't ask again" into Settings → App → Workbench.
+
+        ``ConfigPanel.setupConfig`` only runs once at startup, so without this
+        the settings checkbox would keep showing the value from launch time.
+        """
+        from utils.config import pcfg
+
+        panel = getattr(self.window(), "configPanel", None)
+        checker = getattr(panel, "confirm_costly_checker", None)
+        if checker is None:
+            return
+        checker.blockSignals(True)
+        checker.setChecked(pcfg.workbench_confirm_costly)
+        checker.blockSignals(False)
 
     def _on_prepare(self):
         if not self.has_project():

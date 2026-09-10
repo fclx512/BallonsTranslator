@@ -972,10 +972,6 @@
             <translation>开发者通道：</translation>
         </message>
         <message>
-            <source>&lt;p&gt;Check for the latest commit (unverified developer changes). Not guaranteed to work on every device.&lt;/p&gt;</source>
-            <translation>&lt;p&gt;检查最新提交（未经验证的开发者改动）。不保证在所有设备上可用。&lt;/p&gt;</translation>
-        </message>
-        <message>
             <source>Export file:</source>
             <translation>导出文件：</translation>
         </message>
@@ -1228,6 +1224,10 @@
             <location filename="..\ui\configpanel.py" />
             <source>Ask for confirmation before workbench actions that call the AI (e.g. Prepare for translation).</source>
             <translation>工作台中会调用 AI 的操作（如「一键准备」）执行前先弹窗确认。</translation>
+        </message>
+        <message>
+            <source>Quick Symbol Palette</source>
+            <translation>快捷符号面板</translation>
         </message>
     </context>
     <context>

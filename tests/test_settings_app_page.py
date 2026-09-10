@@ -65,16 +65,72 @@ class SettingsAppPageTest(unittest.TestCase):
         )
 
     def test_workbench_toggle_writes_config(self):
-        self.panel.confirm_costly_checker.setChecked(False)
-        self.assertFalse(pcfg.workbench_confirm_costly)
+        # Drive both directions explicitly: the panel is shared across tests,
+        # so a setChecked that matches the current state emits nothing.
         self.panel.confirm_costly_checker.setChecked(True)
         self.assertTrue(pcfg.workbench_confirm_costly)
+        self.panel.confirm_costly_checker.setChecked(False)
+        self.assertFalse(pcfg.workbench_confirm_costly)
 
     def test_pipeline_panels_no_longer_carry_them(self):
         self.assertFalse(hasattr(self.panel.inpaint_config_panel, "ps_path_edit"))
         self.assertFalse(
             hasattr(self.panel.trans_config_panel, "_confirm_costly_checker")
         )
+
+    def test_halfwidth_sublock_follows_its_parent(self):
+        """子行走统一写法（ConfigFormRow 套 24px 缩进 wrapper），随父项开关。
+
+        用 ``isHidden()`` 而不是 ``isVisibleTo``：Typesetting 不是当前页，
+        QStackedWidget 把它显式隐藏了，``isVisibleTo(panel)`` 恒为 False。
+        """
+        from ui import shared_widget as SW
+        from ui.configpanel import ConfigFormRow
+
+        snapshot = pcfg.halfwidth_jp_corner_brackets
+        self.addCleanup(
+            setattr, pcfg, "halfwidth_jp_corner_brackets", snapshot
+        )
+        # The handler also re-applies the setting to every text item on the
+        # canvas.  Earlier tests leave a stub there, so neutralize it — this
+        # test is about layout only.
+        canvas = SW.canvas
+        SW.canvas = None
+        self.addCleanup(setattr, SW, "canvas", canvas)
+
+        checker = self.panel.halfwidth_corner_bracket_checker
+        wrapper = self.panel._halfwidth_horizontal_sublock_wrapper
+        self.assertIsInstance(
+            self.panel._halfwidth_horizontal_sublock, ConfigFormRow
+        )
+
+        checker.setChecked(False)
+        self.assertTrue(wrapper.isHidden())
+        checker.setChecked(True)
+        self.assertFalse(wrapper.isHidden())
+
+    def test_glossary_panel_mirrors_the_confirm_toggle(self):
+        """「不再提示」写 False 后，设置页复选框必须跟着变。
+
+        ``ConfigPanel.setupConfig`` 只在启动跑一次，不回写的话复选框会停在
+        启动时的旧值；回写还得屏蔽信号，否则 toggled 会把 pcfg 又翻回 True。
+        """
+        from qtpy.QtWidgets import QWidget
+
+        from ui.glossary_agent_panel import GlossaryAgentPanel
+
+        # Keep the stand-in window alive on the test instance: if the local
+        # dropped it, Qt would destroy the child panel before cleanups run.
+        self._fake_window = QWidget()
+        self._fake_window.configPanel = self.panel
+        workbench = GlossaryAgentPanel(None, self._fake_window)
+
+        self.panel.confirm_costly_checker.setChecked(True)
+        pcfg.workbench_confirm_costly = False  # what the glossary panel writes
+        workbench._sync_confirm_costly_checkbox()
+
+        self.assertFalse(self.panel.confirm_costly_checker.isChecked())
+        self.assertFalse(pcfg.workbench_confirm_costly)
 
 
 if __name__ == "__main__":
