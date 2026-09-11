@@ -422,12 +422,6 @@
             <translation>快捷菜单</translation>
         </message>
         <message>
-            <location filename="..\ui\configpanel.py" line="1736" />
-            <location filename="..\ui\configpanel.py" line="1277" />
-            <source>DL Module</source>
-            <translation>自动化模组</translation>
-        </message>
-        <message>
             <location filename="..\ui\configpanel.py" line="1742" />
             <location filename="..\ui\configpanel.py" line="1278" />
             <source>General</source>
@@ -798,10 +792,6 @@
         <message>
             <source>&lt;p&gt;Immediately releases all loaded models from memory. Use this to free &lt;b&gt;GPU/CPU resources&lt;/b&gt; without restarting the application.&lt;/p&gt;</source>
             <translation>&lt;p&gt;立即从内存中释放所有已加载的模型。无需重启应用即可释放&lt;b&gt; GPU/CPU 资源&lt;/b&gt;。&lt;/p&gt;</translation>
-        </message>
-        <message>
-            <source>&lt;p&gt;Parameters of the active &lt;b&gt;text detection engine&lt;/b&gt;. The engine itself is picked in the bottom bar; some engines may require additional model downloads on first use.&lt;/p&gt;</source>
-            <translation>&lt;p&gt;当前&lt;b&gt;文本检测引擎&lt;/b&gt;的参数。引擎本身在底部栏选择；部分引擎首次使用可能需要额外下载模型。&lt;/p&gt;</translation>
         </message>
         <message>
             <source>&lt;p&gt;Parameters of the active &lt;b&gt;OCR&lt;/b&gt; (Optical Character Recognition) engine. This stage extracts text from detected text regions in the image.&lt;/p&gt;</source>
@@ -1228,6 +1218,10 @@
         <message>
             <source>Quick Symbol Palette</source>
             <translation>快捷符号面板</translation>
+        </message>
+        <message>
+            <source>&lt;p&gt;Parameters of the active &lt;b&gt;text detection engine&lt;/b&gt;. Switch the engine via the dropdown above; some engines may require additional model downloads on first use.&lt;/p&gt;</source>
+            <translation>&lt;p&gt;当前&lt;b&gt;文本检测引擎&lt;/b&gt;的参数。直接在上方的下拉框切换引擎；部分引擎首次使用时可能需要额外下载模型。&lt;/p&gt;</translation>
         </message>
     </context>
     <context>
@@ -4709,11 +4703,6 @@ in Settings → Mirror Config, then click Retry.</source>
             <location filename="..\ui\module_parse_widgets.py" />
             <source>Parameters</source>
             <translation>参数</translation>
-        </message>
-        <message>
-            <location filename="..\ui\module_parse_widgets.py" />
-            <source>Engine: %1</source>
-            <translation>当前引擎：%1</translation>
         </message>
     </context>
     <context>

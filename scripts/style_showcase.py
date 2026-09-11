@@ -324,22 +324,9 @@ def _sections():
         from ui.configpanel import ConfigFormRow
         return ConfigFormRow("标签", ConfigLineEdit("内容控件"))
 
-    def config_block():
-        from ui.configpanel import ConfigBlock
-        block = ConfigBlock("区块标题")
-        block.vlayout.addWidget(_label("ConfigBlock 内容", color="#888"))
-        return block
-
     def config_text_label():
         from ui.configpanel import ConfigTextLabel
         return ConfigTextLabel("ConfigTextLabel 正文", 12)
-
-    def config_content():
-        from ui.configpanel import ConfigContent
-        content = ConfigContent()
-        content.resize(360, 120)
-        content.vlayout.addWidget(_label("ConfigContent（配置面板滚动容器）", color="#888"))
-        return content
 
     def param_widget():
         from ui.module_parse_widgets import ParamWidget
@@ -553,8 +540,6 @@ def _sections():
         ("配置面板（ui/configpanel.py）", [
             Row("ConfigSubBlock", "ui/configpanel.py::ConfigSubBlock", sub_block, wide=True),
             Row("ConfigFormRow", "ui/configpanel.py::ConfigFormRow", form_row, wide=True),
-            Row("ConfigBlock", "ui/configpanel.py::ConfigBlock", config_block, wide=True),
-            Row("ConfigContent", "ui/configpanel.py::ConfigContent", config_content, wide=True),
         ]),
         ("模块参数表单（ui/module_parse_widgets.py）", [
             Row("ParamWidget", "ui/module_parse_widgets.py::ParamWidget", param_widget, wide=True),

@@ -418,6 +418,10 @@ class InpaintPanel(Widget):
         self.inpaint_layout = inpaint_layout = QHBoxLayout()
         inpaint_layout.addWidget(ToolNameLabel(TOOL_LABEL_WIDTH, self.tr("Inpainter")))
         self.inpainter_panel = inpainter_panel
+        # Canvas-local mirror of the settings selector — the real combobox
+        # stays in the settings page, so the tool panel cannot share it.
+        self.engine_combo = inpainter_panel.create_mirror_selector()
+        inpaint_layout.addWidget(self.engine_combo)
 
         # Brush-specific body (thickness / shape).
         self.brush_widget = Widget()
@@ -449,18 +453,8 @@ class InpaintPanel(Widget):
             self.thicknessChanged.emit(value)
 
     def showEvent(self, e) -> None:
-        self.inpaint_layout.addWidget(self.inpainter_panel.module_combobox)
-        # The merged pipeline settings page hides this selector (the engine is
-        # picked in the bottom bar), so the tool panel has to light it up
-        # explicitly when it borrows it.  Never hide it again here: on a tool
-        # switch Qt may deliver the new panel's show before the old one's
-        # hide, and an explicit hide would then win.
-        self.inpainter_panel.module_combobox.setVisible(True)
+        self.engine_combo.sync_items()
         super().showEvent(e)
-
-    def hideEvent(self, e) -> None:
-        self.inpaint_layout.removeWidget(self.inpainter_panel.module_combobox)
-        return super().hideEvent(e)
 
     @property
     def shape(self):
@@ -503,6 +497,10 @@ class RectPanel(Widget):
         self.inpaint_layout = inpaint_layout = QHBoxLayout()
         inpaint_layout.addWidget(ToolNameLabel(TOOL_LABEL_WIDTH, self.tr("Inpainter")))
         self.inpainter_panel = inpainter_panel
+        # Canvas-local mirror of the settings selector — the real combobox
+        # stays in the settings page, so the tool panel cannot share it.
+        self.engine_combo = inpainter_panel.create_mirror_selector()
+        inpaint_layout.addWidget(self.engine_combo)
 
         glayout = QGridLayout()
         glayout.addWidget(self.dilate_label, 0, 0)
@@ -528,18 +526,8 @@ class RectPanel(Widget):
         layout.setSpacing(14)
 
     def showEvent(self, e) -> None:
-        self.inpaint_layout.addWidget(self.inpainter_panel.module_combobox)
-        # The merged pipeline settings page hides this selector (the engine is
-        # picked in the bottom bar), so the tool panel has to light it up
-        # explicitly when it borrows it.  Never hide it again here: on a tool
-        # switch Qt may deliver the new panel's show before the old one's
-        # hide, and an explicit hide would then win.
-        self.inpainter_panel.module_combobox.setVisible(True)
+        self.engine_combo.sync_items()
         super().showEvent(e)
-
-    def hideEvent(self, e) -> None:
-        self.inpaint_layout.removeWidget(self.inpainter_panel.module_combobox)
-        return super().hideEvent(e)
 
     def on_inpaint_seg_method_changed(self):
         pcfg.drawpanel.rectool_method = self.methodComboBox.currentIndex()
@@ -864,10 +852,6 @@ class DrawingPanel(Widget):
         border_pen = QPen(INPAINT_BRUSH_COLOR, 3, Qt.PenStyle.DashLine)
         self.inpaint_mask_item: PixmapItem = PixmapItem(border_pen)
         self.scale_circle = QGraphicsEllipseItem()
-
-        # 修复工具下拉框属于设置页，靠 ConfigContent 的 QSS 定高；搬到修复面板
-        # 后不在 ConfigContent 里，不锁高会比同栏其它下拉框高 3px。
-        inpainter_panel.module_combobox.setFixedHeight(CONFIG_COMBOBOX_HEIGHT)
 
         canvas.finish_painting.connect(self.on_finish_painting)
         canvas.finish_erasing.connect(self.on_finish_erasing)

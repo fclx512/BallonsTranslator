@@ -1,13 +1,12 @@
 from typing import Callable
 
-from qtpy.QtCore import QLocale, Qt, Signal
+from qtpy.QtCore import QLocale, QSignalBlocker, Qt, Signal
 from qtpy.QtGui import QDoubleValidator
 from qtpy.QtWidgets import (
     QCheckBox,
     QFileDialog,
     QGridLayout,
     QHBoxLayout,
-    QLabel,
     QPushButton,
     QSizePolicy,
     QVBoxLayout,
@@ -400,18 +399,8 @@ class ModuleConfigParseWidget(QWidget):
         self.module_label = ParamNameLabel(module_name)
         p_layout.addWidget(self.module_label)
         p_layout.addWidget(self.module_combobox)
-        # Read-only stand-in for the selector row, shown when the engine is
-        # picked from the bottom bar instead (merged pipeline page, see
-        # ``set_module_selector_visible``).  Kept first so it reads as the
-        # row's subject once the label and selector are hidden.
-        self.engine_label = QLabel()
-        self.engine_label.setObjectName("PipelineEngineLabel")
-        self.engine_label.setVisible(False)
-        p_layout.insertWidget(0, self.engine_label)
         p_layout.addStretch(-1)
         self.p_layout = p_layout
-
-        self.module_combobox.currentTextChanged.connect(self._refresh_engine_label)
 
         layout = QVBoxLayout(self)
         self.param_widget_map = {}
@@ -507,24 +496,46 @@ class ModuleConfigParseWidget(QWidget):
         self.updateModuleParamWidget()
         self.blockSignals(False)
 
-    def _refresh_engine_label(self, module: str):
-        self.engine_label.setText(self.tr("Engine: %1").replace("%1", module))
+    def create_mirror_selector(self) -> ConfigComboBox:
+        """Independent dropdown mirroring ``module_combobox`` for hosts that
+        need their own widget tree (canvas tool panels): reparenting the real
+        combobox there would blank the settings page's selector row.
 
-    def set_module_selector_visible(self, visible: bool):
-        """Show the built-in module selector row, or replace it with a
-        read-only engine label.
-
-        The merged pipeline page hides the selector because the engine is
-        picked in the bottom bar; the label keeps the tab informative.
-        ``module_combobox`` stays alive either way — the bottom bar, the
-        module manager and the canvas inpaint tool panel all read and write
-        it, and hiding a widget does not detach it from its layout.
+        The real combobox stays the truth source — the mirror re-reads the
+        item list on show (call ``sync_items``) and follows its current text;
+        user picks flow back through ``activated`` and trigger the normal
+        switch chain.
         """
-        self.module_label.setVisible(visible)
-        self.module_combobox.setVisible(visible)
-        self.engine_label.setVisible(not visible)
-        if not visible:
-            self._refresh_engine_label(self.module_combobox.currentText())
+        source = self.module_combobox
+        mirror = ConfigComboBox()
+        mirror.setFixedHeight(CONFIG_COMBOBOX_HEIGHT)
+
+        def sync_items():
+            mirror.blockSignals(True)
+            mirror.clear()
+            for i in range(source.count()):
+                text = source.itemText(i)
+                if not text:  # separator rows
+                    continue
+                mirror.addItem(text)
+                tip = source.itemData(i, Qt.ItemDataRole.ToolTipRole)
+                if tip:
+                    mirror.setItemData(
+                        mirror.count() - 1, tip, Qt.ItemDataRole.ToolTipRole
+                    )
+            mirror.setCurrentText(source.currentText())
+            mirror.blockSignals(False)
+
+        def follow_source(text: str):
+            with QSignalBlocker(mirror):
+                mirror.setCurrentText(text)
+
+        source.currentTextChanged.connect(follow_source)
+        mirror.activated.connect(
+            lambda index: source.setCurrentText(mirror.itemText(index))
+        )
+        mirror.sync_items = sync_items
+        return mirror
 
     @staticmethod
     def _widget_is_deleted(w: QWidget) -> bool:

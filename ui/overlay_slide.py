@@ -269,7 +269,7 @@ class OverlaySlider(QObject):
             self._nav_end_x = 0
             self._nav_current_x = -nav_w
 
-            # ConfigContent: off-screen right ➔ final position (nav_w + spacing)
+            # Content: off-screen right ➔ final position (nav_w + spacing)
             target_content_x = nav_w + spacing
             self._content_anim_start_x = ow
             self._content_anim_end_x = target_content_x
@@ -368,7 +368,7 @@ class OverlaySlider(QObject):
             self._nav_end_x = -nav_w
             self._nav_current_x = 0
 
-            # ConfigContent: visible (content_rest_x) ➔ off-screen right (ow)
+            # Content: visible (content_rest_x) ➔ off-screen right (ow)
             self._content_anim_start_x = content_rest_x
             self._content_anim_end_x = ow
             self._content_start_x = content_rest_x
@@ -440,7 +440,7 @@ class OverlaySlider(QObject):
                 self._nav_anim_end_x,
                 self._nav_anim_start_x,
             )
-            # ConfigContent reversal
+            # Content reversal
             self._content_start_x = self._content_current_x
             self._content_end_x = (
                 self._content_anim_start_x if toward_start else self._content_anim_end_x

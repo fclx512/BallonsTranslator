@@ -1,9 +1,9 @@
 """Offscreen tests for the merged pipeline settings page.
 
 The four stage pages (Text Detection / OCR / Inpaint / Translator) were
-merged into one nav entry with an in-page tab switch; each tab shows a
-read-only engine label instead of the module selector, because the engine is
-picked in the bottom bar.
+merged into one nav entry with an in-page tab switch; each tab shows the
+stage's module selector, and picking an engine there switches it everywhere
+(the ``ModuleManager.set*`` slots mirror it into the bottom bar).
 
 Run from the repo root:
     ./ballontrans_pylibs_win/python.exe tests/test_pipeline_page_merge.py
@@ -55,18 +55,29 @@ class PipelinePageMergeTest(unittest.TestCase):
         )
         self.assertEqual(self.panel.pipeline_stack.count(), 4)
 
-    def test_engine_label_replaces_module_selector(self):
+    def test_module_selector_visible_per_tab(self):
         for panel in self._stage_panels():
-            self.assertTrue(panel.module_label.isHidden())
-            self.assertTrue(panel.module_combobox.isHidden())
-            self.assertFalse(panel.engine_label.isHidden())
-            self.assertEqual(panel.p_layout.indexOf(panel.engine_label), 0)
+            self.assertFalse(panel.module_label.isHidden())
+            self.assertFalse(panel.module_combobox.isHidden())
 
-    def test_engine_label_follows_module_combobox(self):
-        panel = self.panel.detect_config_panel
-        panel.module_combobox.addItem("ysgyolo")
-        panel.module_combobox.setCurrentText("ysgyolo")
-        self.assertEqual(panel.engine_label.text(), "Engine: ysgyolo")
+    def test_inpaint_mirror_selector_follows_source(self):
+        """The canvas tool panels get their own mirror dropdown instead of
+        reparenting the shared combobox (which would blank the settings
+        row): items sync on show, text follows the source, user picks flow
+        back into the truth source."""
+        panel = self.panel.inpaint_config_panel
+        mirror = panel.create_mirror_selector()
+        panel.module_combobox.addItem("mirror_a")
+        panel.module_combobox.addItem("mirror_b")
+        mirror.sync_items()
+        self.assertEqual(
+            [mirror.itemText(i) for i in range(mirror.count())],
+            ["mirror_a", "mirror_b"],
+        )
+        panel.module_combobox.setCurrentText("mirror_b")
+        self.assertEqual(mirror.currentText(), "mirror_b")
+        mirror.activated.emit(0)
+        self.assertEqual(panel.module_combobox.currentText(), "mirror_a")
 
     def test_module_combobox_stays_alive_for_the_bottom_bar(self):
         """The merged page must not drop the combobox: the bottom bar, the

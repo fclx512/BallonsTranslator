@@ -1,6 +1,6 @@
 import os.path as osp
 from functools import partial
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Union
 
 from qtpy.QtCore import (
     QCoreApplication,
@@ -343,167 +343,6 @@ def _section_header(text: str) -> ConfigSectionHeader:
     return header
 
 
-def combobox_with_label(
-    sel: List[str],
-    name: str,
-    description: str = None,
-    note: str = None,
-    vertical_layout: bool = False,
-    target_block: QWidget = None,
-    fix_size: bool = True,
-    parent: QWidget = None,
-    insert_stretch: bool = False,
-) -> Tuple[ConfigComboBox, QWidget]:
-    combox = ConfigComboBox(fix_size=fix_size, scrollWidget=parent)
-    combox.addItems(sel)
-    if target_block is None:
-        sublock = ConfigSubBlock(
-            combox,
-            name,
-            description,
-            note=note,
-            vertical_layout=vertical_layout,
-            insert_stretch=insert_stretch,
-        )
-        sublock.layout().setAlignment(Qt.AlignmentFlag.AlignLeft)
-        sublock.layout().setSpacing(CONFIG_SUBBLOCK_SPACING)
-        return combox, sublock
-    else:
-        layout = target_block.layout()
-        layout.addSpacing(CONFIG_SUBBLOCK_SPACING)
-        layout.addWidget(
-            ConfigTextLabel(name, CONFIG_FONTSIZE_CONTENT, QFont.Weight.Normal)
-        )
-        layout.addWidget(combox)
-        return combox, target_block
-
-
-def checkbox_with_label(
-    name: str, description: str = None, note: str = None, target_block: QWidget = None
-):
-    checkbox = ConfigCheckBox()
-    if description is not None:
-        font = checkbox.font()
-        font.setPointSizeF(CONFIG_FONTSIZE_CONTENT * 0.8)
-        checkbox.setFont(font)
-        checkbox.setText(description)
-        vertical_layout = True
-    else:
-        checkbox.setMinimumWidth(24)
-        vertical_layout = False
-
-    if target_block is None:
-        sublock = ConfigSubBlock(checkbox, name, note=note, vertical_layout=vertical_layout)
-        if vertical_layout is False:
-            sublock.layout().addItem(
-                QSpacerItem(
-                    0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-                )
-            )
-        target_block = sublock
-    return checkbox, target_block
-
-
-class ConfigBlock(Widget):
-    def __init__(self, header: str, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.header = ConfigTextLabel(header, CONFIG_FONTSIZE_HEADER)
-        self.vlayout = QVBoxLayout(self)
-        self.vlayout.addWidget(self.header)
-        self.setContentsMargins(*CONFIGBLOCK_CONTENT_MARGINS)
-        self.subblock_list = []
-        self.index: int = 0
-
-    def setIndex(self, index: int):
-        self.index = index
-
-    def addLineEdit(
-        self, name: str = None, description: str = None, vertical_layout: bool = False
-    ):
-        le = ConfigLineEdit()
-        le.setFixedWidth(CONFIG_COMBOBOX_MIDEAN)
-        le.setFixedHeight(LINEEDIT_FIXHEIGHT)
-        sublock = ConfigSubBlock(le, name, description, vertical_layout)
-        if vertical_layout is False:
-            sublock.layout().addItem(
-                QSpacerItem(
-                    0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-                )
-            )
-        self.addSublock(sublock)
-        sublock.layout().setSpacing(CONFIG_SUBBLOCK_SPACING)
-        return le, sublock
-
-    def addTextLabel(self, text: str = None):
-        label = ConfigTextLabel(text, CONFIG_FONTSIZE_HEADER)
-        self.vlayout.addWidget(label)
-
-    def addSublock(self, sublock: ConfigSubBlock):
-        self.vlayout.addWidget(sublock)
-        self.subblock_list.append(sublock)
-
-    def addCombobox(
-        self,
-        sel: List[str],
-        name: str,
-        description: str = None,
-        vertical_layout: bool = False,
-        target_block: QWidget = None,
-        fix_size: bool = True,
-    ) -> Tuple[ConfigComboBox, QWidget]:
-        combox, sublock = combobox_with_label(
-            sel, name, description, vertical_layout, target_block, fix_size, parent=self
-        )
-        if target_block is None:
-            self.addSublock(sublock)
-        return combox, sublock
-
-    def addBlockWidget(
-        self,
-        widget: Union[QWidget, QLayout],
-        name: str = None,
-        description: str = None,
-        vertical_layout: bool = False,
-    ) -> ConfigSubBlock:
-        sublock = ConfigSubBlock(widget, name, description, vertical_layout)
-        self.addSublock(sublock)
-        return sublock
-
-    def addCheckBox(
-        self, name: str, description: str = None, target_block: ConfigSubBlock = None
-    ) -> QCheckBox:
-        checkbox, sublock = checkbox_with_label(name, description, target_block)
-        if target_block is None:
-            self.addSublock(sublock)
-        return checkbox, sublock
-
-    def addGroupedBlock(
-        self,
-        group_title: str,
-        widget: QWidget,
-        object_name: str = None,
-        name: str = None,
-        description: str = None,
-    ) -> ConfigSubBlock:
-        group = PanelGroupBox(group_title)
-        if object_name:
-            group.setObjectName(object_name)
-        group_vlayout = group.contentLayout()
-        group_vlayout.setContentsMargins(*GROUPBOX_CONTENT_MARGINS)
-        group_vlayout.setSpacing(0)
-
-        sublock = ConfigSubBlock(widget, name=name, description=description)
-        group_vlayout.addWidget(sublock)
-
-        self.vlayout.addWidget(group)
-        sublock.section_widget = group
-        self.subblock_list.append(sublock)
-        return sublock
-
-    def getSubBlockbyIdx(self, idx: int) -> ConfigSubBlock:
-        return self.subblock_list[idx]
-
-
 def _scroll_interval() -> int:
     """Determine timer interval (ms) based on animation_fps or display refresh."""
     fps = pcfg.animation_fps
@@ -701,111 +540,6 @@ class ConfigTable(QTreeView):
             section_key = self.selected.data(Qt.ItemDataRole.UserRole)
             if section_key is not None:
                 self.section_pressed.emit(section_key)
-
-
-class ConfigContent(QScrollArea):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.setObjectName('ConfigContent')
-        self.config_block_list: List[ConfigBlock] = []
-        self.scrollContent = Widget()
-        self.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        self.setWidget(self.scrollContent)
-        vlayout = QVBoxLayout()
-        vlayout.setContentsMargins(0, 0, 0, 0)
-        vlayout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.scrollContent.setLayout(vlayout)
-        self.setWidgetResizable(True)
-        self.setContentsMargins(0, 0, 0, 0)
-        self.vlayout = vlayout
-
-        self.setVerticalScrollBar(ConfigScrollBar(self))
-
-        self._scroll_timer = QTimer(self)
-        self._scroll_timer.setTimerType(Qt.TimerType.PreciseTimer)
-        self._scroll_timer.timeout.connect(self._update_scroll)
-        self._scroll_elapsed = QElapsedTimer()
-        self._scroll_start_y = 0
-        self._scroll_end_y = 0
-        self._scroll_duration = 350
-        self._scroll_easing = QEasingCurve(QEasingCurve.Type.InOutExpo)
-        self._animating_scroll = False
-
-    def addConfigBlock(self, block: ConfigBlock):
-        self.vlayout.addWidget(block)
-        self.config_block_list.append(block)
-
-    def scrollToWidget(self, widget: QWidget):
-        if self._animating_scroll:
-            self._scroll_timer.stop()
-            self._animating_scroll = False
-            self.verticalScrollBar().setValue(self._scroll_end_y)
-
-        target = widget.mapTo(self.widget(), QPoint(0, 0)).y()
-        vh = self.viewport().height()
-        target -= int(vh * 0.15)
-        sb = self.verticalScrollBar()
-        target = max(0, min(target, sb.maximum()))
-
-        if pcfg.animation_fps < 0:
-            sb.setValue(target)
-            return
-
-        self._scroll_start_y = sb.value()
-        self._scroll_end_y = target
-        self._scroll_duration = 350
-        self._scroll_elapsed.start()
-        self._animating_scroll = True
-        self._scroll_timer.start(_scroll_interval())
-
-    def wheelEvent(self, event):
-        delta = event.angleDelta().y()
-        if delta == 0:
-            event.accept()
-            return
-
-        sb = self.verticalScrollBar()
-        direction = 1 if delta > 0 else -1
-
-        if pcfg.animation_fps < 0:
-            sb.setValue(sb.value() - delta * 100 // 120)
-            event.accept()
-            return
-
-        offset = direction * 100
-        if self._animating_scroll:
-            self._scroll_end_y = max(0, min(self._scroll_end_y - offset, sb.maximum()))
-        else:
-            self._scroll_easing.setType(QEasingCurve.Type.OutCubic)
-            self._scroll_start_y = sb.value()
-            self._scroll_end_y = max(
-                0, min(self._scroll_start_y - offset, sb.maximum())
-            )
-            self._scroll_duration = 150
-            self._scroll_elapsed.start()
-            self._animating_scroll = True
-            self._scroll_timer.start(_scroll_interval())
-
-        event.accept()
-
-    def _update_scroll(self):
-        elapsed = self._scroll_elapsed.elapsed()
-        progress = min(elapsed / self._scroll_duration, 1.0)
-        eased = self._scroll_easing.valueForProgress(progress)
-
-        current = int(
-            round(
-                self._scroll_start_y
-                + (self._scroll_end_y - self._scroll_start_y) * eased
-            )
-        )
-        self.verticalScrollBar().setValue(current)
-
-        if progress >= 1.0:
-            self._scroll_timer.stop()
-            self._animating_scroll = False
-            # Trigger final sync so nav matches settled scroll position
-            self.verticalScrollBar().valueChanged.emit(self.verticalScrollBar().value())
 
 
 DEFAULT_SHORTCUTS = {
@@ -1511,8 +1245,7 @@ class _DeadLayout:
 
 
 class _DeadBlock:
-    """Stands in for the old ConfigBlock during paged layout. Sections built
-    here are registered as pages on the active ConfigPanel's pageStack."""
+    """No-op layout target: addWidget(head_widget) registers it as a page."""
 
     def __init__(self, header: str):
         self.header = header
@@ -1578,8 +1311,8 @@ class ConfigPanel(Widget):
         self.configContent = self.pageStack
         # Map: section_widget (PanelGroupBox) -> page index in pageStack
         self._page_index: dict = {}
-        # Dead blocks retained for compatibility; sections live in pageStack
-        dlConfigPanel = _DeadBlock(self.tr("DL Module"))  # noqa: F841
+        # Legacy-style builders (Project/Typesetting/Interface/App) register
+        # their sections as pages through _DeadBlock.addGroupedBlock.
         generalConfigPanel = _DeadBlock(self.tr("General"))
 
         label_translator = self.tr("Translator")
@@ -2742,11 +2475,6 @@ class ConfigPanel(Widget):
 
         create_info_dialog("\n".join(lines), parent=self)
 
-    def addConfigBlock(self, header: str) -> _DeadBlock:
-        # Legacy shim — sections are now pages. Returned block's
-        # addGroupedBlock/vlayout route into this panel's pageStack.
-        return _DeadBlock(header)
-
     def _wrap_page(self, content: QWidget, margins=None) -> QScrollArea:
         """Wrap a section widget into a scrollable page container."""
         if margins is None:
@@ -2780,10 +2508,10 @@ class ConfigPanel(Widget):
         """Build the merged pipeline page: one tab per stage.
 
         Each tab hosts the stage's ``ModuleConfigParseWidget`` with its module
-        selector replaced by a read-only engine label — the engine itself is
-        picked in the bottom bar, this page only edits its parameters.  The
-        stage panels keep their identity and signals so the bottom bar, the
-        module manager and the canvas inpaint tool panel are unaffected.
+        selector; picking an engine here switches it everywhere (the
+        ``ModuleManager.set*`` slots mirror the change into the bottom bar).
+        The stage panels keep their identity and signals so the bottom bar,
+        the module manager and the canvas inpaint tool panel are unaffected.
         """
         page = QWidget()
         layout = QVBoxLayout(page)
@@ -2808,7 +2536,7 @@ class ConfigPanel(Widget):
             (
                 self.detect_config_panel,
                 self.tr("Text Detection"),
-                self.tr("<p>Parameters of the active <b>text detection engine</b>. The engine itself is picked in the bottom bar; some engines may require additional model downloads on first use.</p>"),
+                self.tr("<p>Parameters of the active <b>text detection engine</b>. Switch the engine via the dropdown above; some engines may require additional model downloads on first use.</p>"),
             ),
             (
                 self.ocr_config_panel,
@@ -2827,11 +2555,10 @@ class ConfigPanel(Widget):
             ),
         )
         for panel, title, note in stages:
-            panel.set_module_selector_visible(False)
-            # Anchored to the engine label rather than a fixed index: the
+            # Anchored to the module combobox rather than a fixed index: the
             # stage panels insert their own widgets into this row.
             panel.p_layout.insertWidget(
-                panel.p_layout.indexOf(panel.engine_label) + 1,
+                panel.p_layout.indexOf(panel.module_combobox) + 1,
                 _make_note_btn(note),
             )
             self.pipeline_tab_bar.addTab(title)
@@ -2850,8 +2577,7 @@ class ConfigPanel(Widget):
     def _add_grouped_page(
         self, group_title, widget, object_name=None, name=None, description=None, note=None
     ) -> ConfigSubBlock:
-        """Replacement for legacy ConfigBlock.addGroupedBlock: build a
-        PanelGroupBox ``group`` whose section_widget becomes a page."""
+        """Build a PanelGroupBox ``group`` whose section_widget becomes a page."""
         group = PanelGroupBox(group_title)
         if object_name:
             group.setObjectName(object_name)

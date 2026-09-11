@@ -38,7 +38,7 @@ CustomGV {
     border-radius: 6px;
 }
 
-/* ConfigBlock, ConfigSubBlock 继承 Widget 的 @widgetBackgroundColor (#282C34)，
+/* ConfigSubBlock 继承 Widget 的 @widgetBackgroundColor (#282C34)，
    不与右侧面板产生色差。上游未单独定义，此处保持一致。 */
 
 SearchResultTree {
@@ -164,86 +164,9 @@ QComboBox QAbstractItemView::item:selected {
     color: @inverseTextColor;
 }
 
-/* ── Config panel content inputs (underline style) ──────────── */
-/* Upstream reference: BallonsTranslator/resources/stylesheet.css:59-110 */
-ConfigContent QLineEdit,
-ConfigContent QComboBox,
-ConfigContent QPlainTextEdit {
-    border: none;
-    border-bottom: 1px solid @borderColor;
-    border-radius: 6px;
-    font-size: 13px;
-}
-
-ConfigContent QLineEdit,
-ConfigContent QComboBox {
-    height: 26px;
-}
-
-ConfigContent QLineEdit {
-    padding: 0px 8px;
-}
-
-ConfigContent QComboBox {
-    padding-left: 8px;
-}
-
-ConfigContent QPlainTextEdit {
-    padding: 4px 8px;
-}
-
-ConfigContent QLineEdit:focus,
-ConfigContent QComboBox:hover,
-ConfigContent QComboBox:focus,
-ConfigContent QPlainTextEdit:focus {
-    border-bottom: 1px solid @accentPrimary;
-}
-
-ConfigContent QLineEdit:disabled {
-    border-bottom: 1px solid @disabledForegroundColor;
-    color: @disabledForegroundColor;
-}
-
-ConfigContent QComboBox:disabled {
-    color: @disabledForegroundColor;
-}
-
-ConfigContent QComboBox::drop-down {
-    border: none;
-}
-
-/* ConfigContent buttons (upstream ref: stylesheet.css:171-182) */
-ConfigContent QPushButton {
-    min-height: 26px;
-    max-height: 26px;
-    height: 26px;
-    padding: 1px 10px;
-    font-size: 13px;
-    border-radius: 4px;
-}
-
-ConfigContent NoBorderPushBtn {
-    border: none;
-}
-
-/* ConfigContent inline row (upstream ref: stylesheet.css:184-186) */
-ConfigContent QWidget#ConfigInlineRow {
-    background-color: @emptyContentBackgroundColor;
-}
-
-/* ConfigContent label / checkbox font size (upstream ref: stylesheet.css:188-192) */
-ConfigContent QLabel#ParamFieldLabel,
-ConfigContent QLabel#ParamLabelAboveLabel,
-ConfigContent QCheckBox {
-    font-size: 13px;
-}
-
 /* ── Config panel input widgets (rounded border style) ──────── */
-/* These override the underline-style ConfigContent rules above  */
-/* for widgets that explicitly opt into the rounded look.        */
 
-ConfigLineEdit,
-ConfigContent ConfigLineEdit {
+ConfigLineEdit {
     background: @inputBackgroundColor;
     border: 1px solid @borderColor;
     border-radius: 4px;
@@ -257,8 +180,7 @@ ConfigLineEdit:disabled {
     border: 1px solid @disabledForegroundColor;
 }
 
-ConfigTextEdit,
-ConfigContent ConfigTextEdit {
+ConfigTextEdit {
     background: @inputBackgroundColor;
     border: 1px solid @borderColor;
     border-radius: 4px;
@@ -291,9 +213,7 @@ QKeySequenceEdit QLineEdit:disabled {
 }
 
 ConfigComboBox,
-ConfigContent ConfigComboBox,
-ParamComboBox,
-ConfigContent ParamComboBox {
+ParamComboBox {
     background: @inputBackgroundColor;
     border: 1px solid @borderColor;
     border-radius: 4px;
@@ -1521,11 +1441,6 @@ QScrollArea {
     border-color: @borderColor;
     border-style: solid;
     border-width: 1px;
-}
-
-/* ConfigContent is inside a splitter inside the settings dialog — no outer border needed */
-QScrollArea#ConfigContent {
-    border: none;
 }
 
 TextEditListScrollArea {
