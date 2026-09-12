@@ -616,9 +616,6 @@ class MainWindow(mainwindow_cls):
         # Font Style Manager — opened as a dialog from Tools menu
         self._styleMgrDialog: Optional[QDialog] = None
 
-        # Quick Symbol dialog
-        self._quickSymbolDialog: Optional[QDialog] = None
-
         # Left panels are embedded in the layout – no OverlaySlider needed.
         # Width animation is driven by _animate_panel_for / _animate_panel_hide.
         self._panel_anim: dict[int, QTimer] = {}
@@ -2309,23 +2306,8 @@ class MainWindow(mainwindow_cls):
             self.merge_dialog.show()
 
     def on_open_quick_symbol(self):
-        """Open the Quick Symbol dialog as a floating always-on-top window."""
-        if self._quickSymbolDialog is not None and self._quickSymbolDialog.isVisible():
-            self._quickSymbolDialog.raise_()
-            self._quickSymbolDialog.activateWindow()
-            return
-
-        if self._quickSymbolDialog is None:
-            from .quick_symbol_dialog import QuickSymbolDialog
-
-            dlg = QuickSymbolDialog(self)
-            dlg.destroyed.connect(self._on_quick_symbol_destroyed)
-            self._quickSymbolDialog = dlg
-
-        self._quickSymbolDialog.show()
-
-    def _on_quick_symbol_destroyed(self):
-        self._quickSymbolDialog = None
+        """Toggle the Quick Symbol rail dock (text panel format rail)."""
+        self.textPanel.formatpanel.toggle_symbol_dock()
 
     def on_open_advanced_align(self):
         """Open Advanced Alignment dialog."""

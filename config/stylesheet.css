@@ -1729,6 +1729,30 @@ Widget#CardContent {
     background-color: transparent;
 }
 
+/* ── 快捷符号面板（ui/quick_symbol_panel.py）：紧凑符号/假名格子 ── */
+QToolButton#SymbolCell {
+    background-color: @pushBtnBackgroundColor;
+    border: 1px solid @borderColor;
+    border-radius: 3px;
+    padding: 0;
+    font-size: 12px;
+}
+
+QToolButton#SymbolCell:hover {
+    background-color: @hoverBackgroundColor;
+    border: 1px solid @accentPrimary;
+}
+
+QToolButton#SymbolCell:pressed {
+    background-color: @emptyContentBackgroundColor;
+}
+
+QToolButton#SymbolCell:checked {
+    background-color: @accentPrimary;
+    border: 1px solid @accentPrimary;
+    color: @inverseTextColor;
+}
+
 
 TextStyleLabel {
     border-radius: 7px;

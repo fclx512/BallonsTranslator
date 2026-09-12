@@ -613,7 +613,7 @@ _ACTION_NAMES = {
     "inpaint_tool": QCoreApplication.translate("_ShortcutRow", "Inpaint Tool"),
     "ai_tool": QCoreApplication.translate("_ShortcutRow", "AI Inpaint"),
     "merge_tool": QCoreApplication.translate("_ShortcutRow", "Merge Tool"),
-    "quick_symbol": QCoreApplication.translate("_ShortcutRow", "Quick Symbol"),
+    "quick_symbol": QCoreApplication.translate("_ShortcutRow", "Soft Keyboard"),
     "advanced_align": QCoreApplication.translate("_ShortcutRow", "Advanced Alignment"),
     "merge_blks": QCoreApplication.translate("_ShortcutRow", "Merge Text Blocks"),
     "toggle_original_opacity": QCoreApplication.translate("_ShortcutRow", "Toggle Original Compare"),
@@ -1733,6 +1733,25 @@ class ConfigPanel(Widget):
             )
         )
 
+        # Soft keyboard trigger scope — source-only by default (OCR review
+        # missing-char fixes happen on the source side)
+        self.symbol_kb_source_only_checker = ConfigCheckBox(
+            self.tr("Source box only")
+        )
+        self.symbol_kb_source_only_checker.setChecked(
+            pcfg.symbol_keyboard_source_only
+        )
+        self.symbol_kb_source_only_checker.toggled.connect(
+            self.on_symbol_kb_source_only_changed
+        )
+        ts_layout.addWidget(
+            ConfigFormRow(
+                self.tr("Soft keyboard trigger scope"),
+                self.symbol_kb_source_only_checker,
+                note=self.tr("<p>When <b>Soft Keyboard</b> is enabled (text panel rail), it pops up on focusing a text box. Checked = source box only; unchecked = both source and translation boxes.</p>"),
+            )
+        )
+
         # Vertical Text section — vertical-only typography controls
         ts_layout.addWidget(_section_header(self.tr("Vertical Text")))
 
@@ -2775,6 +2794,9 @@ class ConfigPanel(Widget):
     def on_quick_insert_characters_changed(self, text: str):
         pcfg.quick_insert_characters = text
 
+    def on_symbol_kb_source_only_changed(self, checked: bool):
+        pcfg.symbol_keyboard_source_only = bool(checked)
+
     def on_halfwidth_corner_bracket_changed(self, state: int):
         pcfg.halfwidth_jp_corner_brackets = bool(state)
         # Hide and disable the horizontal sub-option when the parent is off
@@ -3065,6 +3087,9 @@ class ConfigPanel(Widget):
             pcfg.auto_tate_chu_yoko.enabled
         )
         self.quick_insert_characters_edit.setText(pcfg.quick_insert_characters)
+        self.symbol_kb_source_only_checker.setChecked(
+            pcfg.symbol_keyboard_source_only
+        )
         self.halfwidth_corner_bracket_checker.setChecked(
             pcfg.halfwidth_jp_corner_brackets
         )

@@ -1223,6 +1223,18 @@
             <source>&lt;p&gt;Parameters of the active &lt;b&gt;text detection engine&lt;/b&gt;. Switch the engine via the dropdown above; some engines may require additional model downloads on first use.&lt;/p&gt;</source>
             <translation>&lt;p&gt;当前&lt;b&gt;文本检测引擎&lt;/b&gt;的参数。直接在上方的下拉框切换引擎；部分引擎首次使用时可能需要额外下载模型。&lt;/p&gt;</translation>
         </message>
+        <message>
+            <source>&lt;p&gt;When &lt;b&gt;Soft Keyboard&lt;/b&gt; is enabled (text panel rail), it pops up on focusing a text box. Checked = source box only; unchecked = both source and translation boxes.&lt;/p&gt;</source>
+            <translation>&lt;p&gt;启用&lt;b&gt;软键盘&lt;/b&gt;（文本面板窄栏图标）后，焦点进入文本框时自动弹出。勾选 = 仅原文框触发；取消勾选 = 原文/译文框均触发。&lt;/p&gt;</translation>
+        </message>
+        <message>
+            <source>Soft keyboard trigger scope</source>
+            <translation>软键盘触发范围</translation>
+        </message>
+        <message>
+            <source>Source box only</source>
+            <translation>仅原文框</translation>
+        </message>
     </context>
     <context>
         <name>DependencyDialog</name>
@@ -1740,6 +1752,10 @@ Hide them all? You can move them back later.</source>
         <message>
             <source>Proportional</source>
             <translation>比例</translation>
+        </message>
+        <message>
+            <source>Soft Keyboard</source>
+            <translation>软键盘</translation>
         </message>
     </context>
     <context>
@@ -3977,11 +3993,6 @@ Orientation: {o}</source>
         </message>
         <message>
             <location filename="..\ui\mainwindowbars.py" />
-            <source>Quick Symbol</source>
-            <translation>快捷符号</translation>
-        </message>
-        <message>
-            <location filename="..\ui\mainwindowbars.py" />
             <source>Normalize Breaks…</source>
             <translation>整理换行…</translation>
         </message>
@@ -4002,6 +4013,10 @@ Orientation: {o}</source>
         <message>
             <source>About BallonsTranslator-lite</source>
             <translation>关于 BallonsTranslator-lite</translation>
+        </message>
+        <message>
+            <source>Soft Keyboard</source>
+            <translation>软键盘</translation>
         </message>
     </context>
     <context>
@@ -4326,11 +4341,6 @@ in Settings → Mirror Config, then click Retry.</source>
             <translation>合并工具</translation>
         </message>
         <message>
-            <location filename="..\\ui\\configpanel.py" line="808" />
-            <source>Quick Symbol</source>
-            <translation>快捷符号</translation>
-        </message>
-        <message>
             <location filename="..\ui\configpanel.py" line="808" />
             <source>Advanced Alignment</source>
             <translation>高级对齐</translation>
@@ -4379,6 +4389,10 @@ in Settings → Mirror Config, then click Retry.</source>
             <location filename="..\ui\configpanel.py" line="1032" />
             <source>Rst</source>
             <translation>Rst</translation>
+        </message>
+        <message>
+            <source>Soft Keyboard</source>
+            <translation>软键盘</translation>
         </message>
     </context>
     <context>
@@ -4516,34 +4530,6 @@ in Settings → Mirror Config, then click Retry.</source>
         <message>
             <source>Y:</source>
             <translation>Y:</translation>
-        </message>
-    </context>
-    <context>
-        <name>QuickSymbolDialog</name>
-        <message>
-            <location filename="..\ui\quick_symbol_dialog.py" line="39" />
-            <source>Quick Symbol</source>
-            <translation>快捷符号</translation>
-        </message>
-        <message>
-            <source>Quotes</source>
-            <translation>引号</translation>
-        </message>
-        <message>
-            <source>Punctuation</source>
-            <translation>标点</translation>
-        </message>
-        <message>
-            <source>Decoratives</source>
-            <translation>装饰</translation>
-        </message>
-        <message>
-            <source>Other</source>
-            <translation>其他</translation>
-        </message>
-        <message>
-            <source>Custom</source>
-            <translation>自定义</translation>
         </message>
     </context>
     <context>
@@ -6963,6 +6949,49 @@ No pipeline stages will be executed.</source>
             <location filename="..\ui\run_pipeline_dialog.py" />
             <source>plain</source>
             <translation>直译</translation>
+        </message>
+    </context>
+    <context>
+        <name>QuickSymbolPanel</name>
+        <message>
+            <source>Custom</source>
+            <translation>自定义</translation>
+        </message>
+        <message>
+            <source>Decoratives</source>
+            <translation>装饰</translation>
+        </message>
+        <message>
+            <source>Punctuation</source>
+            <translation>标点</translation>
+        </message>
+        <message>
+            <source>Quotes</source>
+            <translation>引号</translation>
+        </message>
+        <message>
+            <source>Romaji → kana (Enter to insert)</source>
+            <translation>罗马字 → 假名（回车插入）</translation>
+        </message>
+        <message>
+            <source>Backspace</source>
+            <translation>退格</translation>
+        </message>
+        <message>
+            <source>Full-width space</source>
+            <translation>全角空格</translation>
+        </message>
+        <message>
+            <source>Hiragana / Katakana</source>
+            <translation>平假名 / 片假名</translation>
+        </message>
+        <message>
+            <source>Kana</source>
+            <translation>假名</translation>
+        </message>
+        <message>
+            <source>Symbols</source>
+            <translation>符号</translation>
         </message>
     </context>
 </TS>

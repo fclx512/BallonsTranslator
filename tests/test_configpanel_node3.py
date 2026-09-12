@@ -2,7 +2,7 @@
 
 Covers the three new Text-formatting settings — automatic Tate-chu-yoko
 (toggle + Apply button + options), compact punctuation spacing, and quick
-insert characters — plus the QuickSymbolDialog custom group fed by
+insert characters — plus the QuickSymbolPanel custom group fed by
 ``pcfg.quick_insert_characters``.
 
 Run from the repo root:
@@ -20,7 +20,7 @@ os.chdir(APP_ROOT)
 os.environ["QT_API"] = "pyqt6"
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
-from qtpy.QtWidgets import QApplication, QPushButton  # noqa: E402
+from qtpy.QtWidgets import QApplication, QPushButton, QToolButton  # noqa: E402
 
 from utils.config import pcfg  # noqa: E402
 
@@ -213,10 +213,10 @@ class QuickSymbolCustomGroupTest(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
-    def _buttons(self, dialog):
+    def _buttons(self, panel):
         return [
             btn
-            for btn in dialog.findChildren(QPushButton)
+            for btn in panel.findChildren(QToolButton)
             if len(btn.text()) == 1
         ]
 
@@ -224,30 +224,30 @@ class QuickSymbolCustomGroupTest(unittest.TestCase):
         old = pcfg.quick_insert_characters
         self.addCleanup(setattr, pcfg, "quick_insert_characters", old)
         pcfg.quick_insert_characters = "♥♡★"
-        from ui.quick_symbol_dialog import QuickSymbolDialog
+        from ui.quick_symbol_panel import QuickSymbolPanel
 
-        dialog = QuickSymbolDialog()
+        panel = QuickSymbolPanel()
         try:
-            texts = {btn.text() for btn in self._buttons(dialog)}
+            texts = {btn.text() for btn in self._buttons(panel)}
             self.assertIn("♥", texts)
             self.assertIn("♡", texts)
             self.assertIn("★", texts)
         finally:
-            dialog.deleteLater()
+            panel.deleteLater()
 
     def test_empty_custom_chars_no_crash(self):
         old = pcfg.quick_insert_characters
         self.addCleanup(setattr, pcfg, "quick_insert_characters", old)
         pcfg.quick_insert_characters = ""
-        from ui.quick_symbol_dialog import QuickSymbolDialog
+        from ui.quick_symbol_panel import QuickSymbolPanel
 
-        dialog = QuickSymbolDialog()
+        panel = QuickSymbolPanel()
         try:
             # Fixed groups still render without the custom section.
-            texts = {btn.text() for btn in self._buttons(dialog)}
+            texts = {btn.text() for btn in self._buttons(panel)}
             self.assertIn("「", texts)
         finally:
-            dialog.deleteLater()
+            panel.deleteLater()
 
 
 if __name__ == "__main__":

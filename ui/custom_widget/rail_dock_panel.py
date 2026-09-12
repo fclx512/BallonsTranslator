@@ -173,6 +173,9 @@ class RailDockPanel(QFrame):
     # ── internals ────────────────────────────────────────────────
 
     def _set_open_state(self, open_state: bool) -> None:
+        if not self._config_open:
+            # 无记忆字段（如软键盘：显隐由焦点编排驱动）→ 跳过落账
+            return
         from utils.config import pcfg
 
         setattr(pcfg, self._config_open, open_state)

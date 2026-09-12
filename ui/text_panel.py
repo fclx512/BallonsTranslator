@@ -850,6 +850,9 @@ class FontFormatPanel(Widget):
         self.transform_dock = None
         self.history_launcher = None
         self.history_dock = None
+        self.symbol_launcher = None
+        self.symbol_dock = None
+        self._symbol_panel = None
 
         self.vlayout.setContentsMargins(0, 0, 0, 0)
         self.vlayout.setSpacing(6)
@@ -1343,6 +1346,8 @@ class FontFormatPanel(Widget):
         ``getattr`` default keeps this safe on partially-built panels.
         "effects" was a rail dock until 2026-09-07, when the effect stack
         moved into the right format panel (铺右栏) and its launcher retired.
+        The soft keyboard is deliberately NOT in this list: it floats beside
+        the focused editor and coexists with rail docks (no slot sharing).
         """
         for key in ("annotation", "emphasis", "transform", "history"):
             yield (
@@ -1572,6 +1577,85 @@ class FontFormatPanel(Widget):
             with QSignalBlocker(self.history_launcher):
                 self.history_launcher.setChecked(False)
 
+    def install_symbol_launcher(self, rail) -> None:
+        """软键盘功能入口（窄栏图标=开关，键盘随编辑器焦点弹收）。
+
+        内容=``ui/quick_symbol_panel.py::QuickSymbolPanel``（假名/符号
+        两页键区 + 罗马字转假名 + 空格/退格功能键）。图标勾选态即功能
+        开关（``pcfg.symbol_keyboard_enabled``），勾上不立即弹键盘——
+        焦点进入触发范围（默认仅原文框，``pcfg.symbol_keyboard_source_only``）
+        的编辑器时弹出、离开编辑器和键盘时收起（``_sync_symbol_keyboard``）。
+        无内容角标，全局模式保持可用。
+        """
+        from ui.panel_rail import RailLauncherButton
+
+        self.rail = rail
+        self.symbol_launcher = RailLauncherButton("rail_symbol")
+        self.symbol_launcher.setToolTip(self.tr("Soft Keyboard"))
+        self.symbol_launcher.toggled.connect(
+            self._on_symbol_launcher_toggled
+        )
+        rail.add_launcher(self.symbol_launcher)
+        self.symbol_launcher.setChecked(
+            getattr(C.pcfg, "symbol_keyboard_enabled", False)
+        )
+        QApplication.instance().focusChanged.connect(
+            self._sync_symbol_keyboard
+        )
+
+    def _ensure_symbol_dock(self):
+        if self.symbol_dock is None:
+            from ui.quick_symbol_panel import QuickSymbolPanel, SymbolFloatPanel
+
+            self._symbol_panel = QuickSymbolPanel()
+            self.symbol_dock = SymbolFloatPanel(
+                self.tr("Soft Keyboard"),
+                self._symbol_panel,
+            )
+            # 键盘显隐完全由焦点编排驱动：Esc/× 关闭只是隐藏，
+            # 不得清写功能开关（与普通 dock 的 closed→反勾接线不同）
+        return self.symbol_dock
+
+    def _on_symbol_launcher_toggled(self, checked: bool):
+        C.pcfg.symbol_keyboard_enabled = checked
+        if checked:
+            # 勾上不立即弹：等编辑器聚焦（若此刻已有范围内焦点则立即弹）
+            self._sync_symbol_keyboard(None, QApplication.focusWidget())
+        elif self.symbol_dock is not None:
+            self.symbol_dock.hide_keep_state()
+
+    def _sync_symbol_keyboard(self, _old, new) -> None:
+        """焦点驱动的软键盘弹收编排（功能开关勾选时生效）。
+
+        焦点进入触发范围内的编辑器 → 弹出（与其它 rail dock 共存，
+        不占互斥名额）；焦点在键盘自身（罗马字输入行）→ 保持；
+        落到其它任何控件 → 收起。
+        """
+        launcher = self.symbol_launcher
+        if launcher is None or not launcher.isChecked():
+            return
+        if new is not None and self._symbol_panel is not None:
+            w = new
+            while w is not None:
+                if w is self._symbol_panel:
+                    return  # 键盘自身拿焦点：保持现状
+                w = w.parentWidget()
+        from ui.quick_symbol_panel import editor_in_scope
+
+        if new is not None and editor_in_scope(new):
+            self._ensure_symbol_dock()
+            self._symbol_panel.refresh_symbols()
+            self.symbol_dock.open_at_editor(new)
+        elif self.symbol_dock is not None and not self.symbol_dock.isHidden():
+            self.symbol_dock.hide_keep_state()
+
+    def toggle_symbol_dock(self) -> None:
+        """快捷键 / Tools 菜单入口：与点击窄栏图标等价的开合切换。"""
+        if self.symbol_launcher is None:
+            return
+        self.symbol_launcher.setChecked(not self.symbol_launcher.isChecked())
+
+
     def _ensure_annotation_dock(self):
         if self.annotation_dock is None:
             from ui.custom_widget import RailDockPanel
@@ -1644,6 +1728,9 @@ class FontFormatPanel(Widget):
             for _launcher, dock, _ensure, _config_open in docks:
                 if dock is not None and not dock.isHidden():
                     dock.hide_keep_state()
+            # 软键盘不是普通 dock（显隐由焦点编排驱动）：页面隐藏时随隐
+            if self.symbol_dock is not None and not self.symbol_dock.isHidden():
+                self.symbol_dock.hide_keep_state()
 
     def _sync_annotation_controls(self):
         """Restore the annotation controls from the active text item.

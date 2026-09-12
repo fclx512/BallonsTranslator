@@ -1782,15 +1782,30 @@ class Canvas(QGraphicsScene):
         self, edit, change_from: int, removed: int, added_len: int
     ):
         """原文面板键入登记。原文无镜像可抓 before，会话由 focus_in 开启
-        （note_source_focus_in 已捕获 before）；无会话 = 拿不到 before，
-        降级忽略（该变更不可撤销，但不得崩）。"""
+        （note_source_focus_in 已捕获 before）；无会话（面板软键盘等
+        外部插入路径焦点不在编辑器）时以重建的 before 现开一个会话：
+        纯插入可逆推（剔除本次插入段），含删除则降级为当前文
+        （before==after，闭合时不落账，本次变更不可撤销）。"""
         session = self._typing_session
         if (
             session is None
             or session["edit"] is not edit
             or not session["is_source"]
         ):
-            return
+            if session is not None:
+                self._commit_typing_session()
+            text = edit.toPlainText()
+            if removed == 0:
+                before = text[:change_from] + text[change_from + added_len:]
+            else:
+                before = text
+            self._typing_session = session = {
+                "item": None,
+                "edit": edit,
+                "before_text": before,
+                "last_change_end": None,
+                "is_source": True,
+            }
         if session["last_change_end"] is not None and not (
             change_from <= session["last_change_end"] <= change_from + removed
         ):

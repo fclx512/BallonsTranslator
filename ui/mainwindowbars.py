@@ -483,8 +483,8 @@ class TitleBar(Widget):
         smartReorderAction = QAction(self.tr("Path Reorder…"), self)
         self.smart_reorder_trigger = smartReorderAction.triggered
 
-        # Quick Symbol dialog
-        quickSymbolAction = QAction(self.tr("Quick Symbol"), self)
+        # Soft keyboard (kana / symbol input, text panel rail)
+        quickSymbolAction = QAction(self.tr("Soft Keyboard"), self)
         self.quick_symbol_trigger = quickSymbolAction.triggered
 
         # Advanced Alignment

@@ -18,6 +18,22 @@
 
 ---
 
+### 快捷符号改版为软键盘（贴框跟随浮层 + 焦点驱动弹收 + 撤销链修复）
+
+**问题/需求：** 原 Quick Symbol 是对话框形态、需先选中文本框才能插入，罗马字输入与目标框割裂；实测还发现插入不经撤销历史、且可能透传出画布意外渲染。经三轮迭代定稿：窄栏图标只作功能开关，聚焦编辑器自动弹出软键盘。
+
+**改动要点：**
+
+- **功能开关 + 焦点驱动弹收**：窄栏新图标（`icons/rail_symbol.svg`）勾选态=开关（`pcfg.symbol_keyboard_enabled`）；焦点进入触发范围编辑器弹出、离开即收（`ui/text_panel.py::_sync_symbol_keyboard` 编排，浮层不写开合记忆、不占 dock 互斥名额）。触发范围 `pcfg.symbol_keyboard_source_only` 默认仅原文框，设置页可选两侧。
+- **软键盘面板**：新增 `ui/quick_symbol_panel.py`——假名/符号两页键区（清音+浊音/小书き/记号，全内容滚动不裁剪）、罗马字转假名输入行（wapuro 式贪心最长匹配 + 促音/拨音/片假名切换）、全角空格与退格；键区全部 NoFocus 不抢编辑器焦点，页签与假名模式按钮带 checked 激活样式。原 `ui/quick_symbol_dialog.py` 删除（已登记 deprecated）。
+- **贴框跟随浮层**：`SymbolFloatPanel`（继承 `ui/custom_widget/float_drop_panel.py::FloatDropPanel`）锚定聚焦编辑器——默认贴编辑器左缘向画布展开、画布过窄改贴右缘并夹回宿主；换编辑器随迁，编辑器滚动/改尺寸与宿主缩放自动重锚；显隐带 16px 滑动过渡（`pcfg.animation_fps` 门控，可打断反向）。`FloatDropPanel` 构造期锚点无父级时的 parent 环死循环已加守卫。
+- **撤销/透传修复（根因三连）**：①`ui/textedit_area.py::insert_external_text` 显式登记与文档信号链重复致双登记，删多余调用；②`ui/canvas.py::note_source_edit` 原文无会话时降级忽略，改为重建 before 开会话（纯插入精确可逆）；③插入/退格前 `editor.setFocus()` 让 focus_in 重开会话并使光标可见。
+- **文档与测试**：i18n 全量同步（新词条 + 上下文标注）；`tests/test_configpanel_node3.py` 迁移、`tests/test_rail_docks.py` 桩补齐；`docs/项目概述.md`、`docs/基础速查/i18n.md`、`docs/技术实现/反向移植_规范.md`、上游移植完成记录同步。
+
+**涉及文件：** `ui/quick_symbol_panel.py`、`ui/quick_symbol_dialog.py`（删）、`ui/text_panel.py`、`ui/textedit_area.py`、`ui/canvas.py`、`ui/configpanel.py`、`ui/mainwindow.py`、`ui/mainwindowbars.py`、`ui/scenetext_manager.py`、`ui/custom_widget/float_drop_panel.py`、`ui/custom_widget/rail_dock_panel.py`、`utils/config.py`、`icons/rail_symbol.svg`、`icons/text-effect-stroke.svg`、`config/stylesheet.css`、`scripts/audit_registry.json`、`translate/zh_CN.ts`、`translate/zh_CN.qm`、`tests/test_configpanel_node3.py`、`tests/test_rail_docks.py`、`docs/`（4 处）
+
+---
+
 ## 2026-09-11
 
 ### 分支清理 + 多代理协作约定（当日立规并撤回）（WorkBuddy）

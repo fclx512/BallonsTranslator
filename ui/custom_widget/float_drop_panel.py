@@ -38,6 +38,10 @@ class FloatDropPanel(Widget):
         if host is None:
             central = getattr(window, "centralWidget", lambda: None)()
             host = central or window
+        if host is anchor:
+            # 锚点自身尚无父级（window() 解析到锚点自己）→ 保持顶层，
+            # 留给 open_panel 的 _ensure_host 重钉，否则形成 parent 环
+            host = None
         super().__init__(host)
         self._anchor = anchor
         # 锚点构造期往往尚未挂进任何布局（parentWidget() 为 None），
@@ -74,7 +78,8 @@ class FloatDropPanel(Widget):
         body_layout.addWidget(content_widget)
         layout.addWidget(body, 1)
 
-        host.installEventFilter(self)
+        if host is not None:
+            host.installEventFilter(self)
         self.hide()
 
     # ── public API ───────────────────────────────────────────────

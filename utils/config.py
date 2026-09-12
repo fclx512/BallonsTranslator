@@ -467,6 +467,9 @@ class ProgramConfig(Config):
     emphasis_dock_open: bool = False
     transform_dock_open: bool = False
     history_dock_open: bool = False
+    # 软键盘（左缘窄栏入口）功能开关与触发范围（默认仅原文框）
+    symbol_keyboard_enabled: bool = False
+    symbol_keyboard_source_only: bool = True
     # 修复区历史浮层（左缘窄栏入口，DrawingPanel）开合记忆
     inpaint_history_dock_open: bool = False
     show_seq_badge: bool = True

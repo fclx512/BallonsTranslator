@@ -239,16 +239,17 @@ class SourceTextEdit(QTextEdit):
         cursor.insertText(text)
 
     def insert_external_text(self, text: str):
-        """Insert text from outside (e.g. QuickSymbolDialog).
+        """Insert text from outside (e.g. the soft keyboard panel).
 
-        The old focus-gated change tracking is gone: regular change handling
-        fires on any document change, so inserting then letting the normal
-        handler propagate is enough.
+        The document change routes through the regular
+        ``contentsChanged → on_content_changed → handle_content_change``
+        chain exactly like typing — do NOT call ``handle_content_change``
+        here as well, that double-fires the undo/propagate signals (each
+        insert registered twice and split the source typing session).
         """
         cursor = self.textCursor()
         cursor.insertText(text)
         self.setTextCursor(cursor)
-        self.handle_content_change()
 
 
 class TransTextEdit(SourceTextEdit):

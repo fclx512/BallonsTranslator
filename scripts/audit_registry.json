@@ -27,6 +27,12 @@
         "ui/glossary_dialog.py": {
             "note": "随阶段4删 beta 退役：CustomGlossaryDialog 唯一入口是运行窗口已删的 Custom... 按钮，2026-08-23 删除"
         },
+        "ui/quick_symbol_dialog.py": {
+            "note": "快捷符号改版（2026-09-12，2026-09-13 二次改版为软键盘）：置顶 QDialog 删除；现为文本面板窄栏软键盘 ui/quick_symbol_panel.py（窄栏图标=功能开关 pcfg.symbol_keyboard_enabled，焦点进入触发范围编辑器弹出），入口见 ui/text_panel.py::install_symbol_launcher",
+            "allowed_mentions": [
+                "docs/技术实现/上游v1.5.12移植_完成记录.md"
+            ]
+        },
         "ui/scene_textlayout.py": {
             "note": "v1.5.12 移植后零引用的旧 fork 布局，2026-08-23 删除（渲染入口已切 ui/text_engine/）",
             "allowed_mentions": [
