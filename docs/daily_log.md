@@ -2,6 +2,22 @@
 
 > 记录**仓库层面**的改动（功能增删、远端分支变动、规范调整），供变更史查阅。踩坑细节、方案草稿与跨代理交接留在各代理侧的私有记忆（见 `AGENTS.md` 的「多代理协作」一节），不进仓库。仅保留最近 3 天的记录，每次在对应日期中末尾写入日志。
 
+## 2026-09-12
+
+### 底部栏翻译器模型子菜单 + Tools 下拉栏重排 + AI 辅助功能规划文档入库
+
+**问题/需求：** 底部栏 Translator 按钮菜单缺少模型快切入口（上游有但为三类 profile 的 555 行子系统，不合 fork 体量）；「不常用功能工具箱收纳」方向经用户复议废弃——功能不多，只需对 Tools 下拉菜单做一次重排版；另把多轮讨论定稿的 AI 辅助功能规划文档（框级打标 + 标签体系）入库。
+
+**改动要点：**
+
+- **模型子菜单**：`ui/module_tool_button.py::ModuleSelectionWidget` 新增 `model_menu_provider` 回调属性（菜单每次打开重建时取数，保证反映他处改动）+ `model_changed` 信号 + 「模型」子菜单；`ui/mainwindow.py::_trans_model_menu_data` 读活动 profile 的 `model_options`（无清单不显示子菜单），`on_trans_model_changed` 经 `remember_model_option`/`save_all_profiles` 写回 `profile.model` 即改即落盘。翻译器逐请求重读 profile，切换下一次翻译请求即生效；Profile 卡片页 showEvent 重读磁盘覆盖回显。有意裁剪：只做翻译器模型切换，不搬 vision/image 模态与按钮文字显示模型名。
+- **Tools 下拉栏重排**：`ui/mainwindowbars.py` 菜单两组化——文字/样式（样式管理器、Quick Symbol、高级对齐、整理换行）+ 页面/图像（区域合并、路径重排、无字图配对）；整理换行从「导出/批量处理」、无字图配对从「外部工具」各自归位，「外部工具」分组取消。方向改定与最终分组记录在 `docs/技术实现/不常用功能工具箱_规划.md`（已重写为「整理工具下拉栏」）。
+- **AI 辅助功能规划文档**：新增 `docs/技术实现/AI辅助功能_规划.md`（六轮讨论定稿：§7 框级打标触发、§8 疑点/指示标签体系与五标签定稿、OCR 置信度透传调研、实施批次 A–D），状态「规划定稿，可实施」。
+
+**涉及文件：** `ui/module_tool_button.py`、`ui/mainwindow.py`、`ui/mainwindowbars.py`、`translate/zh_CN.ts`、`translate/zh_CN.qm`、`docs/技术实现/不常用功能工具箱_规划.md`、`docs/技术实现/AI辅助功能_规划.md`
+
+---
+
 ## 2026-09-11
 
 ### 分支清理 + 多代理协作约定（当日立规并撤回）（WorkBuddy）

@@ -85,6 +85,12 @@ from utils.config import (
 )
 from utils.logger import logger as LOGGER
 from utils.message import create_error_dialog, create_info_dialog
+from utils.profile_manager import (
+    find_profile,
+    load_profiles,
+    remember_model_option,
+    save_all_profiles,
+)
 from utils.proj_imgtrans import ProjImgTrans
 from utils.text_processing import is_cjk
 from utils.textblock import TextAlignment, TextBlock
@@ -752,6 +758,14 @@ class MainWindow(mainwindow_cls):
         )
         self.bottomBar.trans_selector.tgt_selector.currentTextChanged.connect(
             self.on_trans_tgt_changed
+        )
+
+        # Bottom-bar translator model submenu (active profile's model list).
+        self.bottomBar.trans_selector.model_menu_provider = (
+            self._trans_model_menu_data
+        )
+        self.bottomBar.trans_selector.model_changed.connect(
+            self.on_trans_model_changed
         )
 
         self.drawingPanel.maskTransperancySlider.setValue(
@@ -3180,6 +3194,51 @@ class MainWindow(mainwindow_cls):
             tgt_selector.blockSignals(True)
             tgt_selector.setCurrentText(text)
             tgt_selector.blockSignals(False)
+
+    def _trans_model_menu_data(self):
+        """Model submenu data: the translator's active profile model list.
+
+        Queried on every menu open; returns None when the translator or its
+        active profile has no model options to switch between.
+        """
+        translator = self.module_manager.translator
+        if translator is None:
+            return None
+        profile_name = translator.get_param_value("active_profile")
+        if not profile_name:
+            return None
+        profile = find_profile(profile_name)
+        if profile is None:
+            return None
+        options = [
+            str(option)
+            for option in (profile.get("model_options") or [])
+            if str(option)
+        ]
+        if not options:
+            return None
+        return {"options": options, "current": str(profile.get("model") or "")}
+
+    def on_trans_model_changed(self, model: str):
+        """Write a model picked in the bottom-bar submenu back to the profile.
+
+        The translator re-reads the profile per request, so the next
+        translation picks up the new model without re-initialization.
+        """
+        translator = self.module_manager.translator
+        if translator is None or not model:
+            return
+        profile_name = translator.get_param_value("active_profile")
+        profiles = load_profiles()
+        target = next(
+            (p for p in profiles if p.get("name") == profile_name), None
+        )
+        if target is None or str(target.get("model") or "") == model:
+            return
+        target["model"] = model
+        remember_model_option(target, "model", model)
+        save_all_profiles(profiles)
+        LOGGER.info("Translator model set to {}".format(model))
 
     def on_inpaint_changed(self):
         module = self.bottomBar.inpaint_selector.selector.currentText()

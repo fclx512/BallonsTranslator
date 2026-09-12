@@ -500,19 +500,15 @@ class TitleBar(Widget):
         self.launch_notext_tool = noTextToolAction.triggered
 
         toolsMenu = QMenu(self.toolsToolBtn)
-        # 页面布局工具
-        toolsMenu.addAction(mergeToolAction)
-        toolsMenu.addAction(smartReorderAction)
-        toolsMenu.addSeparator()
         # 文字 / 样式工具
         toolsMenu.addAction(self._styleMgrAction)
         toolsMenu.addAction(quickSymbolAction)
         toolsMenu.addAction(advAlignAction)
-        toolsMenu.addSeparator()
-        # 导出 / 批量处理
         toolsMenu.addAction(normalizeBreaksAction)
         toolsMenu.addSeparator()
-        # 外部工具
+        # 页面 / 图像工具
+        toolsMenu.addAction(mergeToolAction)
+        toolsMenu.addAction(smartReorderAction)
         toolsMenu.addAction(noTextToolAction)
         self.toolsToolBtn.setMenu(toolsMenu)
         self.toolsToolBtn.setPopupMode(QToolButton.InstantPopup)

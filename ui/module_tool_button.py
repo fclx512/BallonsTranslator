@@ -55,6 +55,7 @@ class ModuleSelectionWidget(Widget):
     cfg_clicked = Signal()
     src_changed = Signal(str)
     tgt_changed = Signal(str)
+    model_changed = Signal(str)
 
     def __init__(self, fallback_name: str, icon_filename: str, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -89,6 +90,11 @@ class ModuleSelectionWidget(Widget):
         self.menu = QMenu(self.tool_btn)
         self.tool_btn.setMenu(self.menu)
         self.menu.aboutToShow.connect(self.rebuildMenu)
+
+        # Model submenu data source (translator only): a callable returning
+        # ``{"options": [...], "current": str}`` or None. Queried on every
+        # menu open so profile edits made elsewhere are always reflected.
+        self.model_menu_provider = None
 
         # Config cog button — shown on hover
         self.cfg_btn = QPushButton()
@@ -190,6 +196,31 @@ class ModuleSelectionWidget(Widget):
         if self.src_selector.count() > 0:
             self.menu.addSeparator()
             self._addLanguageMenus()
+
+        # Model submenu (translator LLM only; fed by the host's provider).
+        if self.model_menu_provider is not None:
+            self.menu.addSeparator()
+            self._addModelMenu()
+
+    def _addModelMenu(self):
+        """Add the model submenu from ``model_menu_provider`` data."""
+        data = self.model_menu_provider()
+        if not data:
+            return
+        options = [str(option) for option in (data.get("options") or []) if str(option)]
+        if not options:
+            return
+        current = str(data.get("current") or "")
+        model_menu = QMenu(self.tr("Model"), self.menu)
+        self.menu.addMenu(model_menu)
+        for option in options:
+            action = QAction(option, model_menu)
+            action.setCheckable(True)
+            action.setChecked(option == current)
+            action.triggered.connect(
+                lambda checked=False, value=option: self.model_changed.emit(value)
+            )
+            model_menu.addAction(action)
 
     def _addLanguageMenus(self):
         """Add source/target language submenus (used by translator)."""

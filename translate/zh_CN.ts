@@ -4644,6 +4644,10 @@ in Settings → Mirror Config, then click Retry.</source>
             <source>Target - {language}</source>
             <translation>目标语言 - {language}</translation>
         </message>
+        <message>
+            <source>Model</source>
+            <translation>模型</translation>
+        </message>
     </context>
     <context>
         <name>ContextMenuCustomizeDialog</name>
